@@ -1,0 +1,74 @@
+### Server Configuration
+@baseUrl = http://localhost:8088
+@destination = source-destination
+@message-id = 70eaa5b7-5465-4e25-8e13-dbdc213fb417
+
+### Destination Endpoints
+
+# List all destinations
+GET {{baseUrl}}/destinations
+Accept: application/json
+
+###
+
+# Create a new destination
+POST {{baseUrl}}/destinations
+Content-Type: application/json
+
+{
+  "name": "{{destination}}"
+}
+
+###
+
+# Delete a destination
+DELETE {{baseUrl}}/destinations/{{destination}}
+
+### Message Endpoints
+
+# Queue a new message
+POST {{baseUrl}}/destinations/{{destination}}/messages
+Content-Type: application/json
+
+{
+  "payload": "{\"message\": \"Hello, world!\"}",
+  "headers": {
+    "myHeader": "myHeaderValue"
+  }
+}
+
+###
+
+# Poll for a message (get next available message)
+GET {{baseUrl}}/destinations/{{destination}}/messages
+Accept: application/json
+
+###
+
+# Get all messages from a destination
+GET {{baseUrl}}/destinations/{{destination}}/messages/all
+Accept: application/json
+
+###
+
+# Delete all messages from a destination
+DELETE {{baseUrl}}/destinations/{{destination}}/messages/all
+Accept: application/json
+
+###
+
+# Acknowledge a message (marks it as processed and removes from queue)
+POST {{baseUrl}}/destinations/{{destination}}/messages/{{message-id}}/ack
+Content-Type: application/json
+
+###
+
+# Reject a message (moves it to dead letter queue)
+POST {{baseUrl}}/destinations/{{destination}}/messages/{{message-id}}/reject
+Content-Type: application/json
+
+###
+
+# Get all messages from Dead Letter Queue (DLQ)
+GET {{baseUrl}}/destinations/DLQ/messages/all
+Accept: application/json

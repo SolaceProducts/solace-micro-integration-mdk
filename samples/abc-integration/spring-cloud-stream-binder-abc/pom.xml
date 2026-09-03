@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.solace.connector.core</groupId>
+    <artifactId>pubsubplus-connector-component-build-parent</artifactId>
+    <version>3.1.2</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
+
+  <groupId>com.solace.samples</groupId>
+  <artifactId>spring-cloud-stream-binder-abc</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <url/>
+
+  <licenses>
+    <license>
+      <name>Solace Community License Agreement, Version 1.0</name>
+      <url>https://solace.com/wp-content/uploads/2023/02/solace-community-license.pdf</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer/>
+  </developers>
+  <scm>
+    <connection/>
+    <developerConnection/>
+    <tag/>
+    <url/>
+  </scm>
+
+  <name>Spring Cloud Stream ABC Binder</name>
+  <description>Spring Cloud Stream Binder for ABC service</description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-stream</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.connector.core</groupId>
+      <artifactId>pubsubplus-connector-io-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>abc-client</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <!--    &lt;!&ndash; This module's tests depend on abc-service image.
+    Adding a test dependency ensures proper build order &ndash;&gt;
+    Usually there is NO need to add a backend service as a dependency
+    unless custom docker image or test container needs to be build-->
+
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>abc-test-support</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Best Practice: Enforces some best practices for Maven projects -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>enforce-no-snapshots</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireReleaseDeps>
+                  <message>No Snapshots Allowed!</message>
+                  <onlyWhenRelease>true</onlyWhenRelease>
+                </requireReleaseDeps>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Best Practice: Flatten the POM to remove unnecessary information -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <version>1.7.1</version>
+        <configuration>
+          <updatePomFile>true</updatePomFile>
+          <flattenMode>oss</flattenMode>
+        </configuration>
+        <executions>
+          <!-- enable flattening -->
+          <execution>
+            <id>flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <!-- ensure proper cleanup -->
+          <execution>
+            <id>flatten.clean</id>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- Pass Maven properties to tests -->
+            <PROJECT_VERSION>${project.version}</PROJECT_VERSION>
+            <project.build.directory>${project.build.directory}</project.build.directory>
+            <!-- Path to the JAR from dependent project it will be used to create and deploy docker image if not already present-->
+            <JAR_PATH>../abc-parent/abc-service/target/abc-service-${project.version}.jar
+            </JAR_PATH>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- Environment Variables -->
+          <environmentVariables>
+            <PROJECT_ARTIFACT_ID>${project.artifactId}</PROJECT_ARTIFACT_ID>
+            <PROJECT_VERSION>${project.version}</PROJECT_VERSION>
+            <PROJECT_GROUP_ID>${project.groupId}</PROJECT_GROUP_ID>
+            <BUILD_DIRECTORY>${project.build.directory}</BUILD_DIRECTORY>
+            <JAR_FILE>${project.build.directory}/${project.build.finalName}.jar</JAR_FILE>
+            <JAR_PATH>../abc-parent/abc-service/target/abc-service-${project.version}.jar
+            </JAR_PATH>
+          </environmentVariables>
+
+          <!-- You can also use System Properties alongside -->
+          <systemPropertyVariables>
+            <project.version>${project.version}</project.version>
+            <JAR_PATH>../abc-parent/abc-service/target/abc-service-${project.version}.jar
+            </JAR_PATH>
+          </systemPropertyVariables>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

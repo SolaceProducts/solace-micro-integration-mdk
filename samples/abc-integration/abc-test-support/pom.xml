@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.solace.samples</groupId>
+  <artifactId>abc-test-support</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Abc integration Test Support</name>
+  <description>Test utilities for abc integration components integration testing</description>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.solace.microintegration.core</groupId>
+        <artifactId>micro-integration-platform-bom</artifactId>
+        <version>3.0.9</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+
+  </dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.26.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>abc-service</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>abc-client</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+
+
+    <dependency>
+      <groupId>com.google.cloud.tools</groupId>
+      <!--      this dependency would be required when custom image needs to be built
+       as part of the test setup. It provides the Jib API for building Docker images programmatically.-->
+      <artifactId>jib-core</artifactId>
+      <version>0.28.1</version>
+    </dependency>
+
+    <dependency>
+      <!-- This dependency is only required when NO testcontainer is available and configuration properties to real environment are needed.
+      It is used to load environment variables from a .env file during testing.
+      It allows you to manage configuration settings in a separate file or environment variables without hardcoding values in your code.
+      The dotenv-java library provides a simple API to read and use these environment variables in your tests. -->
+      <!-- https://github.com/cdimascio/dotenv-java -->
+      <groupId>io.github.cdimascio</groupId>
+      <artifactId>dotenv-java</artifactId>
+      <version>3.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.5.5</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

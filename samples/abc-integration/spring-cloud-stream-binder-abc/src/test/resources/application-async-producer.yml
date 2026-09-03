@@ -1,0 +1,44 @@
+# abc:
+#  base-url: <will be injected for testing in AbcSimpleContainerTestExtension using environment variable, it can also be set in test using @DynamicPropertySource>
+#  authentication: # defined in AbcBinderConnectionProperties
+#   authentication-type: basic
+#   username: <will be injected for testing in AbcSimpleContainerTestExtension using environment variable, it can also be set in test using @DynamicPropertySource>
+#   password: <will be injected for testing in AbcSimpleContainerTestExtension using environment variable>
+
+spring:
+  cloud:
+    function:
+      definition: "testSupplier"
+    stream:
+      bindings:
+        testSupplier-out-0:
+          destination: target-destination
+          binder: abc
+          producer:
+            error-channel-enabled: true
+            use-native-encoding: true  # Preserve payload format without conversion
+      abc: # This section is for binder-specific configuration for the 'abc' binder, defined by AbcExtendedBindingProperties
+        default: # Default configuration for all bindings using the 'abc' binder, defined in AbcExtendedBindingProperties
+          producer: # Producer-specific configuration for all bindings using the 'abc' binder, defined in AbcProducerProperties
+            write-timeout-ms: 20000
+            # The example abc producer binding supports async send, which allows the producer to send messages without blocking the calling thread.
+            # When async is enabled producer resolves the ack callback form a message header after the message is sent to abc backend.
+            async: true
+management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: 'health'
+  health:
+    binders:
+      enabled: true
+
+# Logging configuration for tests
+logging:
+  level:
+    root: INFO
+    com.solace.samples.binder.abc: DEBUG

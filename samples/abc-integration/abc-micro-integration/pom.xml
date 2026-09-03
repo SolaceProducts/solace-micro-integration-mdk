@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.solace.microintegration.core</groupId>
+    <artifactId>micro-integration-build-parent</artifactId>
+    <version>3.1.2</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
+
+  <groupId>com.solace.samples</groupId>
+  <artifactId>abc-micro-integration</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+
+  <name>Micro Integration Sample</name>
+  <description>A sample abc micro-integration that bridges data between the Solace event
+    broker and the Abc service.
+  </description>
+  <inceptionYear>2026</inceptionYear>
+  <url/>
+
+  <!--  TODO to be filled up by developers-->
+  <licenses>
+    <license>
+      <name>Solace Community License Agreement, Version 1.0</name>
+      <url>https://solace.com/wp-content/uploads/2023/02/solace-community-license.pdf</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <!--  TODO to be filled up by developers-->
+  <developers>
+    <developer/>
+  </developers>
+  <scm>
+    <connection/>
+    <developerConnection/>
+    <tag/>
+    <url/>
+  </scm>
+
+
+  <properties>
+    <!--
+    ===================================
+    Project Versioning Properties
+    ===================================
+    -->
+    <revision>1.0.0</revision>
+    <sha1/> <!-- Doesn't actually need to be a sha1, this is just another version modifier variable -->
+    <changelist>-SNAPSHOT</changelist>
+    <!--suppress UnresolvedMavenProperty -->
+    <next-revision>
+      ${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.nextIncrementalVersion}
+    </next-revision>
+
+    <!--
+=========================
+Compiler Properties
+=========================
+-->
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <abc-binder.version>1.0.0-SNAPSHOT</abc-binder.version>
+  </properties>
+
+  <dependencyManagement>
+    <!--
+    ====================================================
+    UPGRADING VULNERABLE/CONFLICTING DEPENDENCIES
+    ====================================================
+
+    When upgrading dependencies to fix security vulnerabilities or resolve maven-enforcer-plugin conflicts,
+    specify them here in <dependencyManagement> instead of directly in the POM's root <dependencies>.
+
+    More often than not, these upgrades are for transitive dependencies, not direct dependencies of this project.
+    In other words, they are not hard requirements for this project.
+
+    So if you define them here, they will not create hard dependencies to those libraries.
+    All Maven would do is use the version defined here IF they are used.
+    -->
+    <dependencies>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.solace.connector.core</groupId>
+      <artifactId>pubsubplus-connector-framework</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.spring.cloud</groupId>
+      <artifactId>spring-cloud-starter-stream-solace</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>spring-cloud-stream-binder-abc</artifactId>
+      <version>${abc-binder.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.solace.samples</groupId>
+      <artifactId>abc-test-support</artifactId>
+      <version>${abc-binder.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- This dependency is required only when OAUTH2 is expected to be used to authenticate with the Abc service, or the Solace event broker -->
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
+
+    <!--
+    ===============================================================
+    Developer Tool Dependencies (not packaged in final artifact)
+    ===============================================================
+     -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!--
+    ============================
+    Test Dependencies
+    ============================
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.vaadin.external.google</groupId>
+          <artifactId>android-json</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.solace.connector.core.test</groupId>
+      <artifactId>pubsubplus-connector-framework-test-support-utilities</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Best Practice: Enforces some best practices for Maven projects -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <id>enforce-dependency-rules</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireReleaseDeps>
+                  <message>No Snapshots Allowed!</message>
+                  <onlyWhenRelease>true</onlyWhenRelease>
+                </requireReleaseDeps>
+
+                <!--
+                This rule prevents cross-dependency incompatibilities.
+
+                In most cases, the parent POM will have already taken care of most version conflicts,
+                but if you have a dependency defined here with a hard-coded version,
+                then that may become outdated or result in compatibility issues as the parent POM
+                and/or other dependencies are upgraded.
+
+                This rule prevents this by ensuring that all dependencies in the project are compatible
+                with each other.
+                -->
+                <requireUpperBoundDeps/>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Best Practice: Flatten the POM to remove unnecessary information -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <version>1.7.1</version>
+        <configuration>
+          <updatePomFile>true</updatePomFile>
+          <flattenMode>oss</flattenMode>
+        </configuration>
+        <executions>
+          <!-- enable flattening -->
+          <execution>
+            <id>flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <!-- ensure proper cleanup -->
+          <execution>
+            <id>flatten.clean</id>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

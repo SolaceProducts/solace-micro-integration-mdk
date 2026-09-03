@@ -1,0 +1,45 @@
+spring:
+  cloud:
+    function:
+      definition: "testConsumer;otherTestConsumer"
+    stream:
+      binders:
+        abc-1: # Binder instance name/ alias
+          type: abc
+        #          environment:
+        #            abc: # ← Environment properties for this binder instance
+        #              base-url: <will be injected for testing in MultibinderTestExtension using environment variables, it can also be set in test using>
+        abc-2: # Binder instance name/ alias
+          type: abc
+      #          environment:
+      #            abc: # ← Environment properties for this binder instance
+      #              base-url: <injected during test from @DynamicPropertySource or environment variable>
+      bindings:
+        testConsumer-in-0: # Binding for the first consumer function
+          destination: source-destination
+          binder: abc-1
+          group: test-group-1
+        otherTestConsumer-in-0: # Binding for the second consumer function
+          destination: source-destination
+          binder: abc-2
+          group: test-group-2
+      default-binder: abc-1
+
+management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: 'health'
+  health:
+    binders:
+      enabled: true
+
+# Logging configuration for tests
+logging:
+  level:
+    root: INFO
+    com.solace.samples.binder.abc: DEBUG

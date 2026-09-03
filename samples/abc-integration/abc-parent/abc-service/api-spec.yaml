@@ -1,0 +1,302 @@
+openapi: 3.0.3
+info:
+  title: ABC Service REST API
+  description: API for message queuing and polling from known destinations.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+
+tags:
+  - name: messages
+    description: Operations for handling messages
+  - name: destinations
+    description: Operations for managing destinations
+
+paths:
+  /destinations/{destination}/messages:
+    post:
+      tags:
+        - messages
+      summary: Queue a new message
+      description: Submit a new message to be queued for processing on a specific destination
+      operationId: queueMessage
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Message request object
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+        required: true
+      responses:
+        '201':
+          description: Message successfully queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+    get:
+      tags:
+        - messages
+      summary: Poll for a message
+      description: Poll for the next available message on the specified destination
+      operationId: pollMessage
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A message from the queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '204':
+          description: No messages available in the queue
+
+  /destinations/{destination}/messages/all:
+    get:
+      tags:
+        - messages
+      summary: Retrieve all messages from a queue
+      description: Get all messages currently in the specified destination queue
+      operationId: getAllMessages
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of all messages in the queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MessageResponse'
+        '204':
+          description: No messages available in the queue
+          
+    delete:
+      tags:
+        - messages
+      summary: Delete all messages
+      description: Remove all messages from the specified destination queue
+      operationId: deleteAllMessages
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All messages successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Number of messages deleted
+        '204':
+          description: No messages were in the queue to delete
+        '404':
+          description: Destination not found
+
+  /destinations/{destination}/messages/{id}/ack:
+    post:
+      tags:
+        - messages
+      summary: Acknowledge message
+      description: Acknowledge successful processing of a message which removes it from the queue
+      operationId: acknowledgeMessage
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Message ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Message successfully acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Message not found
+
+  /destinations/{destination}/messages/{id}/reject:
+    post:
+      tags:
+        - messages
+      summary: Reject message
+      description: Reject a message which moves it to the dead letter queue (DLQ)
+      operationId: rejectMessage
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Message ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Message successfully rejected and moved to DLQ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Message not found
+
+  /destinations:
+    get:
+      tags:
+        - destinations
+      summary: List all destinations
+      description: Retrieve a list of all available destinations
+      operationId: listDestinations
+      responses:
+        '200':
+          description: List of destinations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Destination'
+
+    post:
+      tags:
+        - destinations
+      summary: Create a new destination
+      description: Create a new destination (queue)
+      operationId: createDestination
+      requestBody:
+        description: Destination creation request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationRequest'
+        required: true
+      responses:
+        '201':
+          description: Destination successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Destination'
+        '400':
+          description: Invalid input
+        '409':
+          description: Destination already exists
+
+  /destinations/{destination}:
+    delete:
+      tags:
+        - destinations
+      summary: Delete a destination
+      description: Delete an existing destination (queue)
+      operationId: deleteDestination
+      parameters:
+        - name: destination
+          in: path
+          description: Destination (queue) name
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Destination successfully deleted
+        '404':
+          description: Destination not found
+
+components:
+  schemas:
+    MessageRequest:
+      type: object
+      required:
+        - payload
+      properties:
+        payload:
+          description: The payload/content of the message
+          type: string
+        headers:
+          description: Headers/metadata associated with the message
+          type: object
+          additionalProperties:
+            type: string
+      description: Data Transfer Object for incoming message requests
+
+    MessageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the message
+        destination:
+          type: string
+          description: The destination (queue) name
+        payload:
+          type: string
+          description: The payload/content of the message
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Headers/metadata associated with the message
+      description: Data Transfer Object for message responses
+
+    Destination:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the destination (queue)
+        messageCount:
+          type: integer
+          description: The current number of messages in the queue
+      description: Represents a destination (queue) in the system
+
+    DestinationRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The name of the destination (queue) to create
+      description: Data Transfer Object for creating a new destination

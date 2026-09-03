@@ -1,0 +1,106 @@
+-------------------CONSUMER ACK PSEUDOCODE -----------
+
+
+import org.springframework.integration.acks.AcknowledgmentCallback;
+
+/**
+  * This is a placeholder for a wrapper around 3 rd party acknowledgeable message or client library's acknowledgment callback interface.
+  */
+public class AbcAcknowledgmentCallback implements AcknowledgmentCallback {
+
+  // this is a placeholder for 3 rd party acknowledgeable message or client library's acknowledgment callback interface
+  private final AbcAcknowledgmentCallbackOrAcknowledgeableMessage acknowledgeable;
+  private boolean autoAckEnabled = true;
+  private volatile boolean acknowledged = false;
+
+  public AbcAcknowledgmentCallback(AbcAcknowledgmentCallbackOrAcknowledgeableMessage acknowledgeable) {
+    this.acknowledgeable = acknowledgeable;
+  }
+
+  @Override
+  public void acknowledge(Status status) {
+    switch (status) {
+      case ACCEPT:
+        // call the 3 rd party acknowledgeable message or client library's ack method to ack the message
+        this.acknowledgeable.ack();
+        this.acknowledged = true;
+        break;
+      default:
+        // call the 3 rd party acknowledgeable message or client library's nack method to nack the message
+        this.acknowledgeable.nack();
+        this.acknowledged = true;
+        break;
+    }
+  }
+
+  @Override
+  public void acknowledge() {
+    acknowledge(Status.ACCEPT);
+  }
+
+  @Override
+  public boolean isAcknowledged() {
+    return this.acknowledged;
+  }
+
+  @Override
+  public void noAutoAck() {
+    this.autoAckEnabled = false;
+  }
+
+  @Override
+  public boolean isAutoAck() {
+    return this.autoAckEnabled;
+  }
+}
+
+-----------------
+/**
+  * This is an example of a custom ChannelInterceptor that wraps 3 rd party acknowledgeable message or client library's acknowledgment callback interface into Standard Spring AcknowledgmentCallback.
+  * It also injects it as a header for downstream processing.
+  * This bean can be registered in any Spring configuration class to be applied globally or in the main application class.
+  */
+@Bean
+  @GlobalChannelInterceptor(patterns = "input-*")
+  public ChannelInterceptor customInterceptor() {
+    return new ChannelInterceptor() {
+      @Override
+      public Message<?> preSend(Message<?> message, MessageChannel channel) {
+      // Extract the 3rd party acknowledgeable message from the binder's proprietary header,
+      // wrap it into a standard Spring AcknowledgmentCallback, and inject as the standard
+      // ACKNOWLEDGMENT_CALLBACK header for downstream processing by the Solace Micro-Integration Framework.
+        final Object acknowledgeable = message.getHeaders().get(AbcHeaders.ORIGINAL_MESSAGE_WITH_ACKNOWLEDGMENT_CALLBACK);
+        if (acknowledgeable != null) {
+          final AbcAcknowledgmentCallbackOrAcknowledgeableMessage ackableMessage =
+              (AbcAcknowledgmentCallbackOrAcknowledgeableMessage) acknowledgeable;
+
+          return MessageBuilder.fromMessage(message)
+              .setHeader(IntegrationMessageHeaderAccessor.ACKNOWLEDGMENT_CALLBACK,
+                  new AbcAcknowledgmentCallback(ackableMessage))
+              .build();
+        }
+        return message;
+      }
+
+
+      /* Ack the AbcAcknowledgmentCallbackOrAcknowledgeableMessage in case of the ACK mode is MANUAL. */
+      @Override
+      public void afterSendCompletion(Message<?> message, MessageChannel channel, boolean sent,
+          Exception ex) {
+        final Object acknowledgeable = message.getHeaders().get(AbcHeaders.ORIGINAL_MESSAGE_WITH_ACKNOWLEDGMENT_CALLBACK);
+        if (acknowledgeable != null) {
+          AcknowledgmentCallback theAckCallback = (AcknowledgmentCallback) message.getHeaders()
+              .get(IntegrationMessageHeaderAccessor.ACKNOWLEDGMENT_CALLBACK);
+
+          if (theAckCallback instanceof AbcAcknowledgmentCallback
+              && theAckCallback.isAutoAck() && !theAckCallback.isAcknowledged()) {
+            if (ex == null) {
+              theAckCallback.acknowledge(Status.ACCEPT);
+            } else {
+              theAckCallback.acknowledge(Status.REJECT);
+            }
+          }
+        }
+      }
+    };
+  }

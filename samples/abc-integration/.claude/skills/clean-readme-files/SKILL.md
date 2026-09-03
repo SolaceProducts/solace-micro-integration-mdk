@@ -1,0 +1,298 @@
+---
+name: clean-readme-files
+description: Generate concise README.md files for each module and the project root of a generated micro-integration project. Uses the cleaned CLAUDE.md files as source of truth for configuration examples, test commands, and architecture. Run this after clean-claude-files has completed.
+tools_required:
+  - Read
+  - Write
+---
+
+# Clean README Files
+
+## Role
+
+You are a technical writer producing concise, actionable README files for a generated micro-integration project. Each README should let a developer build, configure, and test the module within minutes.
+
+## Overview
+
+After `clean-claude-files` has transformed the CLAUDE.md files into developer-facing reference docs, this skill generates or rewrites the README.md for each module and the project root. Each README is short, to the point, and includes working configuration examples and test commands derived from the cleaned CLAUDE.md.
+
+## Quick Start
+
+```bash
+/clean-readme-files
+```
+
+## File Access Constraint
+
+This skill reads **only** these files:
+
+- `configuration.md` (workspace root — for variable extraction only)
+- `{TARGET_PROJECT_FOLDER}/{INTEGRATION_APP_ARTIFACT_ID}/CLAUDE.md`
+- `{TARGET_PROJECT_FOLDER}/{BINDER_ARTIFACT_ID}/CLAUDE.md`
+- `{TARGET_PROJECT_FOLDER}/{TEST_SUPPORT_ARTIFACT_ID}/CLAUDE.md`
+- Existing `README.md` files in the same locations (if present)
+
+Do **not** read any Java source files, POM files, YAML configs, test files, or any other project files. All content for the READMEs comes from the cleaned CLAUDE.md files.
+
+## Scope
+
+This skill writes exactly four README.md files and copies up to two reference documents:
+
+1. **Root** (`{TARGET_PROJECT_FOLDER}/README.md`)
+2. **Binder module** (`{TARGET_PROJECT_FOLDER}/{BINDER_ARTIFACT_ID}/README.md`)
+3. **Test-support module** (`{TARGET_PROJECT_FOLDER}/{TEST_SUPPORT_ARTIFACT_ID}/README.md`)
+4. **MI module** (`{TARGET_PROJECT_FOLDER}/{INTEGRATION_APP_ARTIFACT_ID}/README.md`)
+5. **Development Guide PDF** — copied to `{TARGET_PROJECT_FOLDER}/` (source path: TBD — placeholder)
+6. **Technology research document** — `overview-{TECH_NAME_LOWER}.md` copied to `{TARGET_PROJECT_FOLDER}/` (source path from configuration.md)
+
+No other files are created or modified.
+
+---
+
+## Step 1: Read configuration and CLAUDE.md files
+
+Read `configuration.md` from workspace root. Extract:
+
+| Variable | Purpose |
+|---|---|
+| `TARGET_PROJECT_FOLDER` | Project root |
+| `INTEGRATION_APP_ARTIFACT_ID` | MI module directory |
+| `BINDER_ARTIFACT_ID` | Binder module directory |
+| `TEST_SUPPORT_ARTIFACT_ID` | Test-support module directory |
+| `TECH_NAME_UPPER` | Technology display name |
+| `TECH_NAME_LOWER` | Technology lowercase name |
+| `BINDER_SKIP_GENERATION` | Third-party binder flag |
+| `JAVA_VERSION` | Java version for prerequisites (e.g., `17`) |
+| `PROJECT_VERSION` | Maven project version for JAR filename |
+| `OVERVIEW_REPORT_PATH` | Path to technology research document |
+
+Read the three cleaned CLAUDE.md files:
+- `{TARGET_PROJECT_FOLDER}/{INTEGRATION_APP_ARTIFACT_ID}/CLAUDE.md`
+- `{TARGET_PROJECT_FOLDER}/{BINDER_ARTIFACT_ID}/CLAUDE.md`
+- `{TARGET_PROJECT_FOLDER}/{TEST_SUPPORT_ARTIFACT_ID}/CLAUDE.md`
+
+These are the source of truth for configuration examples, connection properties, and test profiles.
+
+---
+
+## Naming Conventions
+
+In all generated README content:
+
+- Use **"Solace event broker"** — never "Solace PubSub+" or "PubSub+".
+- Use **"Solace Micro-Integration Framework"** — never "connector framework" or "Connector Framework".
+
+If any CLAUDE.md source text uses the old names, replace them when writing the README.
+
+---
+
+## Step 2: Write root README.md
+
+### 2a. Copy reference documents
+
+Before writing the README, copy these files into `{TARGET_PROJECT_FOLDER}/`:
+
+1. **Technology research document** — Read the file at `OVERVIEW_REPORT_PATH` (from configuration.md) using the Read tool, then Write its full content to `{TARGET_PROJECT_FOLDER}/overview-{TECH_NAME_LOWER}.md`. Preserve the file content exactly as-is — do not modify, summarize, or reformat it.
+2. **Development Guide PDF** — Derive the source folder from `OVERVIEW_REPORT_PATH` (i.e., the parent directory of the research file). Read `Micro-Integration%20Framework%20Development%20Guide.pdf` from that same folder using the Read tool, then Write it to `{TARGET_PROJECT_FOLDER}/Micro-Integration%20Framework%20Development%20Guide.pdf`. Preserve the file exactly as-is.
+
+### 2b. Extract from MI CLAUDE.md
+
+Read the MI CLAUDE.md and extract:
+- The operator configuration file path (e.g., `application-operator.yml`) — used in the Run section and Next Steps.
+
+### 2c. Write the README
+
+Write `{TARGET_PROJECT_FOLDER}/README.md` with this structure:
+
+```markdown
+# {TECH_NAME_UPPER} Micro-Integration
+
+Bridges the Solace event broker and {TECH_NAME_UPPER} using Spring Cloud Stream and the Solace Micro-Integration Framework.
+
+> This project was generated by AI Agent using [Claude Code](https://claude.ai/claude-code).
+
+## Modules
+
+- **{TEST_SUPPORT_ARTIFACT_ID}** — Integration test support (Testcontainers + JUnit 5 extension)
+- **{BINDER_ARTIFACT_ID}** — Spring Cloud Stream binder for {TECH_NAME_UPPER}
+- **{INTEGRATION_APP_ARTIFACT_ID}** — Micro-Integration application
+
+## Prerequisites
+
+- Java {JAVA_VERSION}+
+- Docker (running) — required for integration tests via [Testcontainers](https://www.testcontainers.org/)
+- Maven (wrapper included — no install needed)
+
+## Build
+
+```bash
+./mvnw clean compile
+```
+
+## Running Integration Tests
+
+**Prerequisites:** Docker must be installed and running. Tests use [Testcontainers](https://www.testcontainers.org/).
+
+```bash
+# All modules
+./mvnw clean verify
+
+# Test-support only
+./mvnw verify -pl {TEST_SUPPORT_ARTIFACT_ID} -am
+
+# Micro-integration only
+./mvnw verify -pl {INTEGRATION_APP_ARTIFACT_ID} -am
+```
+
+## Run
+
+```bash
+./mvnw clean package -pl {INTEGRATION_APP_ARTIFACT_ID} -am -DskipTests
+java -jar {INTEGRATION_APP_ARTIFACT_ID}/target/{INTEGRATION_APP_ARTIFACT_ID}-{PROJECT_VERSION}.jar \
+  --spring.config.location=file:./my-connector-config.yaml
+```
+
+The application requires a running Solace event broker and {TECH_NAME_UPPER} broker. Create `my-connector-config.yaml` with your connection details — see `{INTEGRATION_APP_ARTIFACT_ID}/src/main/resources/application-operator.yml` for an example.
+
+### Management Endpoints
+
+| Endpoint | URL |
+|---|---|
+| Health | `http://localhost:8090/actuator/health` |
+| Bindings | `http://localhost:8090/actuator/bindings` |
+
+## Next Steps
+
+- **Configure connections** — Edit `application-operator.yml` with your Solace and {TECH_NAME_UPPER} details
+- **Enable/disable workflows** — Set `solace.connector.workflows.0.enabled` and `solace.connector.workflows.1.enabled` to control message flow directions
+- **Add message transforms** — Implement custom `MessageInterceptorFactory` beans for payload transformation
+- **Containerize** — Build a Docker image:
+  ```bash
+  ./mvnw clean install -DskipTests
+  cd {INTEGRATION_APP_ARTIFACT_ID}
+  ../mvnw spring-boot:build-image
+  ```
+- **Reference docs** — See `CLAUDE.md` in each module for detailed configuration, authentication variants, and extended binding properties
+- **Technology research** — See [overview-{TECH_NAME_LOWER}.md](overview-{TECH_NAME_LOWER}.md) for {TECH_NAME_UPPER} Java SDK details, Docker images, Testcontainers usage, and connection patterns
+- **Advanced binder features** — This generated micro-integration is a simple baseline with passthrough message handling. For custom interceptors, capabilities factories, ack bridging, advanced authentication options (OAuth2, mTLS, SASL), and extended binding property development, consult the *Binder Development* section in the [Micro-Integration Framework Development Guide](Micro-Integration%20Framework%20Development%20Guide.pdf)
+```
+
+### Conditional logic
+
+- If `BINDER_SKIP_GENERATION` is `true`: annotate "(third-party)" after the binder module name in the Modules list, and omit the binder-only test command from the Running Integration Tests section.
+- The "Technology research" bullet description should be brief (one line) and mention 3-4 key topics extracted from the overview report heading or introduction.
+
+---
+
+## Step 3: Write binder module README.md
+
+Read the binder CLAUDE.md. Extract: overview paragraph, connection properties YAML example, and one authentication YAML example.
+
+Write `{TARGET_PROJECT_FOLDER}/{BINDER_ARTIFACT_ID}/README.md`:
+
+```markdown
+# {TECH_NAME_UPPER} Spring Cloud Stream Binder
+
+{One-sentence overview from CLAUDE.md — what it does and which directions it supports.}
+
+## Configuration
+
+{Minimal connection properties YAML from CLAUDE.md Configuration section — required properties only.}
+
+## Testing
+
+**Requires Docker.**
+
+```bash
+./mvnw verify -pl {BINDER_ARTIFACT_ID} -am
+```
+```
+
+Keep it under 40 lines. Do not duplicate the full CLAUDE.md — point developers there for details.
+
+If `BINDER_SKIP_GENERATION` is `true`, the binder is third-party. Write a shorter README noting the third-party dependency and linking to its documentation.
+
+---
+
+## Step 4: Write test-support module README.md
+
+Read the test-support CLAUDE.md. Extract: what Docker image is used, the JUnit 5 extension class name, and a short usage example.
+
+Write `{TARGET_PROJECT_FOLDER}/{TEST_SUPPORT_ARTIFACT_ID}/README.md`:
+
+```markdown
+# {TECH_NAME_UPPER} Test Support
+
+Testcontainers wrapper and JUnit 5 extension for {TECH_NAME_UPPER} integration tests.
+
+## Usage
+
+```java
+@ExtendWith({ExtensionClassName}.class)
+class MyTest {
+    @Test
+    void test({WrapperClassName} container) {
+        // container.getClient() — connected SDK client
+        // container.getHost(), container.getPort() — connection details
+    }
+}
+```
+
+## Prerequisites
+
+- Docker
+- Java 17+
+
+## Run Tests
+
+```bash
+./mvnw verify -pl {TEST_SUPPORT_ARTIFACT_ID} -am
+```
+```
+
+Keep it under 30 lines. Extension and wrapper class names come from the test-support CLAUDE.md.
+
+---
+
+## Step 5: Write MI module README.md
+
+Read the MI CLAUDE.md. Extract: overview, a minimal workflow configuration example, and test commands.
+
+Write `{TARGET_PROJECT_FOLDER}/{INTEGRATION_APP_ARTIFACT_ID}/README.md`:
+
+```markdown
+# {TECH_NAME_UPPER} Micro-Integration
+
+{One-sentence overview — what technologies it bridges and which directions are active.}
+
+## Configuration
+
+{Minimal working YAML example showing one workflow with Solace input and {TECH_NAME_UPPER} output (or vice versa). Include connection properties for both binders.}
+
+## Run
+
+```bash
+java -jar target/{INTEGRATION_APP_ARTIFACT_ID}-*.jar
+```
+
+## Test
+
+**Requires Docker.**
+
+```bash
+./mvnw verify -pl {INTEGRATION_APP_ARTIFACT_ID} -am
+```
+
+## Management Endpoints
+
+- Health: `http://localhost:8090/actuator/health`
+- Bindings: `http://localhost:8090/actuator/bindings`
+```
+
+Keep it under 50 lines. The YAML example must be copy-pasteable — use real property keys from the CLAUDE.md, not placeholders.
+
+---
+
+## Step 6: Summary
+
+Print which files were written and their line counts.
