@@ -60,7 +60,7 @@ Generate only for verified capabilities documented in `{MI_CLAUDE_MD}` (Binder C
 
 **If consumer is supported**: Read `AbcConsumerBindingCapabilitiesFactory.java` and `AbcConsumerBindingMessageInterceptorFactory.java`. Apply general transformations. Set the consumer ack mode from `{MI_CLAUDE_MD}` (Ack Modes section). Apply file-specific transformations from `{MI_CLAUDE_MD}` (Source Transformation Guide — Capabilities Factories section). Write to `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ConsumerBindingCapabilitiesFactory.java` and `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ConsumerBindingMessageInterceptorFactory.java`.
 
-**If producer is supported**: Read `AbcProducerBindingCapabilitiesFactory.java` and `AbcProducerBindingInterceptorFactory.java`. Apply general transformations. Implement the producer ack mode pattern from `{MI_CLAUDE_MD}` (Ack Modes section) — hardcode `SYNC` if no async capability, hardcode `ASYNC_BY_CALLBACK_HEADER` if only async, or dynamically determine from extended producer properties if the binder supports both modes. Apply file-specific transformations from `{MI_CLAUDE_MD}` (Source Transformation Guide — Capabilities Factories section). Write to `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ProducerBindingCapabilitiesFactory.java` and `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ProducerBindingInterceptorFactory.java`.
+**If producer is supported**: Read `AbcProducerBindingCapabilitiesFactory.java` and `AbcProducerBindingInterceptorFactory.java`. Apply general transformations. Implement the producer ack mode pattern from `{MI_CLAUDE_MD}` (Ack Modes section) — hardcode `SYNC` if no async capability, hardcode `ASYNC_BY_CALLBACK_HEADER` if only async, or dynamically determine from extended producer properties if the binder supports both modes. Implement the `payloadDataTypePolicy()` override using the narrowing policy from `{MI_CLAUDE_MD}` — this determines how the framework narrows incoming payload types (OBJECT, ARRAY, STRING, BINARY) before they reach the binder's outbound message handler. Apply file-specific transformations from `{MI_CLAUDE_MD}` (Source Transformation Guide — Capabilities Factories section). Write to `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ProducerBindingCapabilitiesFactory.java` and `{MI_TARGET_SRC_DIR}/{TECH_NAME_CLASS_NAME_USE}ProducerBindingInterceptorFactory.java`.
 
 ### 1b. Main application class
 
@@ -95,7 +95,7 @@ The template contains two artifacts: the `AcknowledgmentCallback` wrapper class 
 
 **Blocked by:** Step 1 must complete successfully.
 
-Read `abc-micro-integration/src/main/resources/application.yml`. This file is largely boilerplate — the 20 input/output bindings, consumer groups, workflow definitions, and Solace settings are identical across all connectors. Apply transformations from `{MI_CLAUDE_MD}` (Source Transformation Guide — application.yml section).
+Read `abc-micro-integration/src/main/resources/application.yml`. This file is entirely framework boilerplate — 20 workflow routing definitions (workflows 0–19, each mapping `input-{N}` to `output-{N}`). It contains no technology-specific content and is identical across all connectors. Apply transformations from `{MI_CLAUDE_MD}` (Source Transformation Guide — application.yml section).
 
 Write to `{MI_TARGET_RESOURCES_DIR}/application.yml`.
 
@@ -212,12 +212,12 @@ Write to `{MI_TARGET_TEST_SRC_DIR}/BasicConsumerMessagingIT.java`.
 
 **Only generate if `VERIFIED_PRODUCER_SUPPORTED` in `{MI_CLAUDE_MD}`.**
 
-Read `BasicProducerMessagingIT.java`. Apply general transformations. Use `{MI_CLAUDE_MD}` (Test Java Plan section) for all test-specific adaptations: imports, `@ExtendWith` extension classes, lifecycle methods, and test verification (send to Solace, poll from tech via SDK). Connection property constants and `setupBinderConnectionProperties()` are inherited from `BaseTest` (generated in Step 3b).
+Read `BasicProducerMessagingIT.java`. Apply general transformations. Use `{MI_CLAUDE_MD}` (Test Java Plan section) for all test-specific adaptations: imports, `@ExtendWith` extension classes, lifecycle methods, and test verification (send to Solace, poll from tech via SDK). If `{MI_CLAUDE_MD}` specifies Awaitility-based verification, wrap the poll-and-assert block in `Awaitility.await().atMost(...).untilAsserted(() -> { ... })` instead of immediate synchronous reads, and include the Awaitility imports (`org.awaitility.Awaitility`, `java.util.concurrent.TimeUnit`). Connection property constants and `setupBinderConnectionProperties()` are inherited from `BaseTest` (generated in Step 3b).
 
 The producer test class must also include:
 
 - **`BATCH_TEST_PROFILE` constant**: `"messaging-batch-producer"` — references the batch producer YAML profile.
-- **Batch producer test method** (template's `solaceToAbcMessagingBatchTest` — apply general transformation rules to rename `Abc` → target technology): follows the same structure as the basic producer test but uses `BATCH_TEST_PROFILE`, sends 10 messages via `solaceMessaging.produceAsync(10, 0, ...)`, tracks payloads in an `ArrayList<String>`, and verifies all 10 arrive at `TARGET_DESTINATION` by polling with the SDK's read/poll method. Assert `hasSize(10)` and `containsExactlyInAnyOrderElementsOf(testPayloads)`.
+- **Batch producer test method** (template's `solaceToAbcMessagingBatchTest` — apply general transformation rules to rename `Abc` → target technology): follows the same structure as the basic producer test but uses `BATCH_TEST_PROFILE`, sends 10 messages via `solaceMessaging.produceAsync(10, 0, ...)`, tracks payloads in an `ArrayList<String>`, and verifies all 10 arrive at `TARGET_DESTINATION` by polling with the SDK's read/poll method. Assert `hasSize(10)` and `containsExactlyInAnyOrderElementsOf(testPayloads)`. When Awaitility-based verification is specified in `{MI_CLAUDE_MD}`, wrap the poll-and-assert block in `Awaitility.await().atMost(...).untilAsserted(() -> { ... })`.
 - **Additional imports**: `java.util.ArrayList` and `java.util.List` (needed for batch test payload tracking).
 
 Write to `{MI_TARGET_TEST_SRC_DIR}/BasicProducerMessagingIT.java`.

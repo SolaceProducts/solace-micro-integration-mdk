@@ -233,6 +233,27 @@ Also inspect the binder source code locally — use Grep to search for import st
 
 Store as `SDK_CLIENT_INFO`.
 
+#### 3d. Verify Spring Cloud Stream compatibility
+
+The MI project uses connector framework 4.3.0+, which requires Spring Cloud Stream 5.0.0 or higher (`org.springframework.cloud:spring-cloud-stream` also known as SCS). A third-party binder built against SCS 4.x is **binary-incompatible** — its compiled classes reference SCS 4.x APIs that no longer exist or have changed signatures in SCS 5.0.x.
+
+Determine the Spring Cloud Stream version the binder targets:
+
+1. Check the binder's local POM(s) for a `spring-cloud-stream` dependency with an explicit `<version>`. If found, use that version directly.
+2. If the version is managed (no explicit `<version>` tag), look for the Spring Cloud BOM import (`spring-cloud-dependencies`) in the binder's POM or its parent. The BOM release train determines the SCS version:
+   - `2025.1.x` or later → SCS 5.0.x (**compatible**)
+   - `2025.0.x` or earlier → SCS 4.x (**incompatible**)
+3. As a fallback, check the Spring Boot parent version:
+   - Spring Boot `4.x` → SCS 5.0.x (**compatible**)
+   - Spring Boot `3.x` → SCS 4.x (**incompatible**)
+4. If still unable to determine from local POMs, use WebFetch on the binder's published POM from Maven Central at `https://repo1.maven.org/maven2/{groupId-as-path}/{artifactId}/{version}/{artifactId}-{version}.pom` and inspect its `<dependencies>` / `<dependencyManagement>` sections.
+
+Store as `BINDER_SCS_VERSION`.
+
+**If the binder targets SCS < 5.0.x:** Use AskUserQuestion to warn the user: **"The third-party binder targets Spring Cloud Stream {version}, which is incompatible with the MI framework's SCS 5.0.x requirement. Options: (1) Find a newer version of the binder that targets SCS 5.0.x, (2) Switch to `BINDER_SKIP_GENERATION=false` and generate a custom binder instead, (3) Continue anyway (expect `verify-microintegration` failures)."** If the user chooses option 1 or 2, stop. If option 3, continue with a warning documented in the CLAUDE.md.
+
+**If compatible (SCS ≥ 5.0.x):** Continue to Step 4.
+
 ---
 
 ### Step 4: Analyze connection properties
@@ -347,7 +368,7 @@ If found, determine the **producer acknowledgment pattern** by reading the `crea
 
 | Evidence of **async** publishing | Evidence of **sync** publishing |
 |---|---|
-| SDK publish method returns `Future`, `CompletableFuture`, `Mono`, `ListenableFuture` | SDK publish method returns `void` or a direct result |
+| SDK publish method returns `Future`, `CompletableFuture`, `Mono` | SDK publish method returns `void` or a direct result |
 | Message handler uses a callback/listener for completion notification | Message handler blocks until the backend confirms receipt |
 | Producer properties include async-related settings (e.g., `async: true`, `acks`, callback timeouts) | No async settings in producer properties |
 
@@ -528,6 +549,7 @@ Write `{BINDER_CLAUDE_MD}` with the following sections. Use concrete, resolved v
 Third-party Spring Cloud Stream binder for {TECH_NAME_UPPER}.
 - **Source**: {BINDER_3PARTY_SOURCE_URL}
 - **Maven dependency**: {full <dependency> element}
+- **Spring Cloud Stream version**: {BINDER_SCS_VERSION} — {compatible/incompatible} with framework SCS 5.0.x requirement
 - **Binder mode**: third-party (not custom-generated)
 
 ## Binder Identity

@@ -81,12 +81,14 @@ management:
   endpoints:
     web: # Actuator web endpoint configuration. For more info: https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html#actuator.endpoints. Initial set of metrics is defined as a bare minimum for Connector Manager compatibility. To shrink it simply remove unnecessary ones
       exposure:
-        include: "health,metrics,loggers,logfile,channels,env,workflows,leaderelection,bindings,info"
+        # Matches framework 4.x.x default — no longer needed here, kept for reference
+        # include: "health,metrics,loggers,logfile,channels,env,workflows,leaderelection,bindings,info"
 
 
 logging:
   level:
-    root: warn
+    # Matches framework 4.x.x default — no longer needed here, kept for reference
+    # root: warn
     com.solace.connector.samples: WARN # Enables logs for this micro integration
     com.solace.connector.core: WARN # Enables logs for connector framework
     com.solace.spring.cloud.stream.binder: WARN # Enables logs for Solace binder

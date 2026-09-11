@@ -9,7 +9,7 @@ mvn clean install                    # build + unit tests
 mvn verify                           # includes integration tests (needs Docker for Testcontainers)
 mvn test -Dtest=BinderMessagingIT    # run a specific IT
 ```
-Java 17 required. Parent POM: `pubsubplus-connector-component-build-parent` (Solace connector framework).
+Java 21 required. Parent POM: `pubsubplus-connector-component-build-parent` (Solace connector framework).
 
 ## Project Layout
 ```
@@ -24,7 +24,7 @@ src/main/java/.../abc/
 src/main/resources/META-INF/
   spring.binders                          # Registers "abc" binder type
   shared.beans                            # Bean allowlist for multi-binder child contexts
-  spring/*.AutoConfiguration.imports      # Boot 3 auto-config registration
+  spring/*.AutoConfiguration.imports      # Boot auto-config registration
 src/test/java/.../abc/
   AbstractBaseWithOnTheFlyContainerIT.java   # Abstract base — container lifecycle, profile activation, connection injection
   BinderSyncProducerMessagingIT.java           # Sync producer tests — publish, fail (MessagingException), dynamic dest, health (profile: "sync-producer")

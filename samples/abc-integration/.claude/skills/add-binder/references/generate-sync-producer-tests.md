@@ -100,7 +100,7 @@ This test class has exactly **5 test methods** — matching the ABC template. Th
    - Annotated with `@Order(1)`
    - **Payload type**: use the preferred supported payload type from CLAUDE.md **Key Design Decisions** (e.g., `String`, `byte[]`). The ABC template uses `String` — adapt if the target SDK requires a different type.
    - **Publish** (universal): `streamBridge.send(outputBindingName, testMessage)` — stays as-is
-   - **Verify** (SDK-specific): replace `containerWrapper.getClient().pollMessage(TARGET_DESTINATION)` with the target SDK's read/poll method. Read the method signature from CLAUDE.md **SDK Client** retrieve methods, or from the overview report. The return type, optional/list wrapping, and awaiting pattern must match the SDK.
+   - **Verify** (SDK-specific): replace `containerWrapper.getClient().pollMessage(TARGET_DESTINATION)` with the target SDK's read/poll method. Read the method signature from CLAUDE.md **SDK Client** retrieve methods, or from the overview report. The return type, optional/list wrapping, and awaiting pattern must match the SDK. If CLAUDE.md specifies Awaitility-based verification, wrap the poll-and-assert block in `Awaitility.await().atMost(...).untilAsserted(() -> { ... })` and add imports `org.awaitility.Awaitility` and `java.util.concurrent.TimeUnit`.
    - **Payload assertion** (SDK-specific): replace `resp.getPayload()` with the SDK's message body accessor. Read from CLAUDE.md **SDK Client** data types section.
    - **Header assertion** (SDK-specific): replace `resp.getHeaders()` with the SDK's header/metadata accessor. Read from CLAUDE.md **SDK Client** data types section.
    - **Filtered header assertion** (universal): `doesNotContainKeys("id", "timestamp", "target-protocol")` — the binder must always filter these Spring internal headers
@@ -110,7 +110,7 @@ This test class has exactly **5 test methods** — matching the ABC template. Th
    - Annotated with `@Order(2)`
    - **Build batch** (universal): generate 2 test payloads using `Stream.generate(() -> ...).limit(2).toList()`. Generate a matching `List<MessageHeaders>` with per-message headers (e.g., `Map.of("test-header", "abcd")`). Build a `Message<?>` with `MessageBuilder.withPayload(testPayloads)` and set header: `BinderHeaders.BATCH_HEADERS` → the batched headers list.
    - **Publish** (universal): `streamBridge.send(outputBindingName, testMessageBatch)` — stays as-is
-   - **Verify** (SDK-specific): iterate `testPayloads`, for each expected payload poll from `TARGET_DESTINATION` using the SDK's read/poll method. Assert payload matches and per-message headers are present. Assert filtered headers (`id`, `timestamp`, `target-protocol`) are absent.
+   - **Verify** (SDK-specific): iterate `testPayloads`, for each expected payload poll from `TARGET_DESTINATION` using the SDK's read/poll method. Assert payload matches and per-message headers are present. Assert filtered headers (`id`, `timestamp`, `target-protocol`) are absent. When Awaitility-based verification is specified, wrap the entire iterate-poll-assert block inside `Awaitility.await().atMost(...).untilAsserted(() -> { ... })`.
    - **No ack callback assertion** — sync path does not use `PublishAcknowledgmentCallback`
 
 3. **`testProducerBindingFailedPublish`** — failure path: invalid destination triggers `MessagingException`
@@ -122,7 +122,7 @@ This test class has exactly **5 test methods** — matching the ABC template. Th
 4. **`testDynamicDestinations`** — dynamic routing: message arrives at overridden destination
    - Annotated with `@Order(4)`
    - **Publish** (universal): uses `BinderHeaders.TARGET_DESTINATION` with `DYNAMIC_DESTINATION`
-   - **Verify at dynamic destination** (SDK-specific): poll from `DYNAMIC_DESTINATION` using the SDK read/poll method — same adaptation as test 1
+   - **Verify at dynamic destination** (SDK-specific): poll from `DYNAMIC_DESTINATION` using the SDK read/poll method — same adaptation as test 1 (including Awaitility wrapping if specified)
    - **Verify not at bound destination** (SDK-specific): poll from `TARGET_DESTINATION` and assert empty/not-present — same SDK method, expect no result
    - **No ack callback assertion** — sync path does not use `PublishAcknowledgmentCallback`
 

@@ -178,6 +178,20 @@ These rules apply to every repair in every category:
 4. **Log the repair** — after each repair, print: `Attempt {N}: [{category}] {file} — {one-line fix description}`
 5. **One fix per attempt** — apply one targeted fix per attempt, then re-run the build to check if it resolved the issue. Do not stack multiple speculative fixes in a single attempt.
 
+#### v4 framework migration patterns
+
+The generated binder targets framework 4.3.0 (Spring Boot 4.1.0, Java 21). If a compilation or test failure matches one of these known v4 migration patterns, apply the listed fix directly — do not perform the full investigation cycle (CLAUDE.md → overview report → ABC template). These are mechanical fixes with known solutions.
+
+| Error pattern | Category | Fix |
+|---|---|---|
+| `package org.springframework.boot.actuate.health does not exist` or `package org.springframework.boot.actuate.autoconfigure.health does not exist` | Compilation | Health API package migration. Replace imports: `o.s.b.actuate.health.Health` → `o.s.b.health.contributor.Health`, `o.s.b.actuate.health.HealthIndicator` → `o.s.b.health.contributor.HealthIndicator`, `o.s.b.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator` → `o.s.b.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator`. Also check for `@ConditionalOnClass(name = "...")` string literals referencing the old package — update those too. Reference: ABC template `spring-cloud-stream-binder-abc/src/main/java/.../config/AbcBinderHealthConfiguration.java`. |
+| `cannot find symbol: class NamedContributor` | Compilation | `CompositeHealthContributor` contract changed. Replace `Iterator<NamedContributor<HealthContributor>> iterator()` with `Stream<Entry> stream()`. Replace `NamedContributor.of(key, value)` with `new Entry(key, value)`. |
+| `package com.fasterxml.jackson.core does not exist` or `package com.fasterxml.jackson.databind does not exist` | Compilation | Jackson 3.x package rename. Replace `com.fasterxml.jackson.core.*` → `tools.jackson.core.*`, `com.fasterxml.jackson.databind.*` → `tools.jackson.databind.*`, `com.fasterxml.jackson.dataformat.*` → `tools.jackson.dataformat.*`, `com.fasterxml.jackson.datatype.*` → `tools.jackson.datatype.*`. Exception: `com.fasterxml.jackson.annotation.*` is unchanged. If POM declares Jackson dependencies, update groupId to `tools.jackson.core`. |
+| `cannot find symbol: class JsonProcessingException` | Compilation | Deleted in Jackson 3.x. Replace with `JacksonException` from `tools.jackson.core`. Remove any `throws JsonProcessingException` declarations — `JacksonException` is an unchecked `RuntimeException`. |
+| `NullPointerException` during integration test with stack trace involving Spring Integration `BeanFactory` resolution, header enricher, or converter lookup inside the channel adapter | Test assertion / Unknown | Missing `setBeanFactory` call. In the binder's `createConsumerEndpoint()` method, add `channelAdapter.setBeanFactory(getBeanFactory());` immediately after creating the channel adapter instance and before registering error infrastructure. Reference: ABC template `spring-cloud-stream-binder-abc/src/main/java/.../AbcBinder.java`. |
+
+If a failure does **not** match any pattern in this table, fall back to the standard fix strategy for its category (read CLAUDE.md, overview report, ABC template).
+
 ---
 
 ### Step 4: Print summary

@@ -3,7 +3,7 @@ package com.solace.samples.microintegration;
 import com.solace.connector.core.io.provider.ConsumerBindingCapabilitiesFactory;
 import com.solace.connector.core.io.provider.ProducerBindingCapabilitiesFactory;
 import com.solace.connector.core.properties.ConnectorProperties;
-import com.solace.connector.core.service.WorkflowContext;
+import com.solace.connector.core.topology.MicroIntegrationTopology;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -38,8 +38,8 @@ public class MicroIntegrationApplication {
   // but before they are passed to the consumer function.
   @Bean
   public AbcConsumerBindingMessageInterceptorFactory abcConsumerBindingMessageInterceptorFactory(
-      ConnectorProperties connectorProperties, WorkflowContext workflowContext) {
-    return new AbcConsumerBindingMessageInterceptorFactory(connectorProperties, workflowContext);
+      ConnectorProperties connectorProperties, MicroIntegrationTopology topology) {
+    return new AbcConsumerBindingMessageInterceptorFactory(connectorProperties, topology);
   }
 
 

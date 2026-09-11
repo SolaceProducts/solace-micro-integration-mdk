@@ -62,6 +62,7 @@ public class AbcBinder extends
     AbcConsumerDestination restDestination = (AbcConsumerDestination) destination;
     AbcInboundChannelAdapter channelAdapter = new AbcInboundChannelAdapter(
         connectionProperties, restDestination, consumerProperties);
+    channelAdapter.setBeanFactory(getBeanFactory());
 
     ErrorInfrastructure errorInfrastructure = registerErrorInfrastructure(destination, group,
         consumerProperties);

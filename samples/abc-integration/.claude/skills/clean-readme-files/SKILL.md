@@ -53,18 +53,18 @@ No other files are created or modified.
 
 Read `configuration.md` from workspace root. Extract:
 
-| Variable | Purpose |
-|---|---|
-| `TARGET_PROJECT_FOLDER` | Project root |
-| `INTEGRATION_APP_ARTIFACT_ID` | MI module directory |
-| `BINDER_ARTIFACT_ID` | Binder module directory |
-| `TEST_SUPPORT_ARTIFACT_ID` | Test-support module directory |
-| `TECH_NAME_UPPER` | Technology display name |
-| `TECH_NAME_LOWER` | Technology lowercase name |
-| `BINDER_SKIP_GENERATION` | Third-party binder flag |
-| `JAVA_VERSION` | Java version for prerequisites (e.g., `17`) |
-| `PROJECT_VERSION` | Maven project version for JAR filename |
-| `OVERVIEW_REPORT_PATH` | Path to technology research document |
+| Variable | Purpose                                     |
+|---|---------------------------------------------|
+| `TARGET_PROJECT_FOLDER` | Project root                                |
+| `INTEGRATION_APP_ARTIFACT_ID` | MI module directory                         |
+| `BINDER_ARTIFACT_ID` | Binder module directory                     |
+| `TEST_SUPPORT_ARTIFACT_ID` | Test-support module directory               |
+| `TECH_NAME_UPPER` | Technology display name                     |
+| `TECH_NAME_LOWER` | Technology lowercase name                   |
+| `BINDER_SKIP_GENERATION` | Third-party binder flag                     |
+| `JAVA_VERSION` | Java version for prerequisites (e.g., `21`) |
+| `PROJECT_VERSION` | Maven project version for JAR filename      |
+| `OVERVIEW_REPORT_PATH` | Path to technology research document        |
 
 Read the three cleaned CLAUDE.md files:
 - `{TARGET_PROJECT_FOLDER}/{INTEGRATION_APP_ARTIFACT_ID}/CLAUDE.md`
@@ -166,12 +166,6 @@ The application requires a running Solace event broker and {TECH_NAME_UPPER} bro
 - **Configure connections** — Edit `application-operator.yml` with your Solace and {TECH_NAME_UPPER} details
 - **Enable/disable workflows** — Set `solace.connector.workflows.0.enabled` and `solace.connector.workflows.1.enabled` to control message flow directions
 - **Add message transforms** — Implement custom `MessageInterceptorFactory` beans for payload transformation
-- **Containerize** — Build a Docker image:
-  ```bash
-  ./mvnw clean install -DskipTests
-  cd {INTEGRATION_APP_ARTIFACT_ID}
-  ../mvnw spring-boot:build-image
-  ```
 - **Reference docs** — See `CLAUDE.md` in each module for detailed configuration, authentication variants, and extended binding properties
 - **Technology research** — See [overview-{TECH_NAME_LOWER}.md](overview-{TECH_NAME_LOWER}.md) for {TECH_NAME_UPPER} Java SDK details, Docker images, Testcontainers usage, and connection patterns
 - **Advanced binder features** — This generated micro-integration is a simple baseline with passthrough message handling. For custom interceptors, capabilities factories, ack bridging, advanced authentication options (OAuth2, mTLS, SASL), and extended binding property development, consult the *Binder Development* section in the [Micro-Integration Framework Development Guide](Micro-Integration%20Framework%20Development%20Guide.pdf)
@@ -241,7 +235,7 @@ class MyTest {
 ## Prerequisites
 
 - Docker
-- Java 17+
+- Java 21+
 
 ## Run Tests
 
@@ -287,11 +281,7 @@ java -jar target/{INTEGRATION_APP_ARTIFACT_ID}-*.jar
 
 - Health: `http://localhost:8090/actuator/health`
 - Bindings: `http://localhost:8090/actuator/bindings`
-```
 
-Keep it under 50 lines. The YAML example must be copy-pasteable — use real property keys from the CLAUDE.md, not placeholders.
-
----
 
 ## Step 6: Summary
 

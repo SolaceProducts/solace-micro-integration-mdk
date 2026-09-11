@@ -5,7 +5,7 @@ import com.solace.connector.core.customizer.ProducerBindingMessageInterceptor;
 import com.solace.connector.core.customizer.ProducerBindingMessageInterceptorFactory;
 import org.springframework.cloud.stream.binder.ProducerProperties;
 import org.springframework.core.Ordered;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.Message;
 
 /**

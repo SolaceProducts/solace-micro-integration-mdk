@@ -32,7 +32,7 @@ Read `{TEST_SUPPORT_MODULE_DIR}/pom.xml` and apply these changes:
 
 4. **Remove** `org.testcontainers:testcontainers` dependency if present — no container is used.
 
-5. **Remove** `org.testcontainers:junit-jupiter` dependency if present — no Testcontainers lifecycle.
+5. **Remove** `org.testcontainers:testcontainers-junit-jupiter` dependency if present — no Testcontainers lifecycle.
 
 ---
 

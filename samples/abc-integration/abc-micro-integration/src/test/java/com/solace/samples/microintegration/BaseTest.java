@@ -1,6 +1,6 @@
 package com.solace.samples.microintegration;
 
-import com.solace.connector.test.resources.resource.ConnectorArgsBuilder;
+import com.solace.connector.test.utilities.resource.ConnectorArgsBuilder;
 import com.solace.samples.abc.testextension.container.simple.AbcTestContainerWithConnectedClient;
 
 public class BaseTest {

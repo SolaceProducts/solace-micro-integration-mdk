@@ -66,6 +66,20 @@ Record the determined case and, for the dynamic case, the extended producer prop
 
 **Reference:** `AbcProducerBindingCapabilitiesFactory.java` in `abc-micro-integration/src/main/java/`.
 
+### Payload data-type narrowing policy
+
+`ProducerBindingCapabilities` exposes a `payloadDataTypePolicy()` default method (defaults to `PayloadDataTypePolicy.supportAll()` — no narrowing). Before a message reaches the binder's outbound message handler, the framework normalizes its payload to one of four standard data types — OBJECT (Map), ARRAY (Collection), STRING (String), BINARY (byte[]) — and then applies the binding's declared narrowing policy. Narrowing converts a payload type the binder cannot handle natively into one it can (e.g., the framework JSON-serializes a Map into a String via ObjectMapper when narrowed to STRING). Read the ABC template's `AbcProducerBindingCapabilitiesFactory.java` for the structural pattern and Javadoc.
+
+From `{BINDER_CLAUDE_MD}`, determine what payload types the binder's outbound message handler accepts natively (e.g., String, byte[], typed objects). Override `payloadDataTypePolicy()` to declare the narrowing policy:
+
+- If the binder accepts **String payloads** (most common): `PayloadDataTypePolicy.narrowAllTo(PayloadDataType.STRING).keep(PayloadDataType.BINARY).build()` — this narrows OBJECT (Map) and ARRAY (Collection) to STRING via framework JSON serialization, passes STRING through, and keeps BINARY as-is.
+- If the binder accepts **only binary payloads**: `PayloadDataTypePolicy.narrowAllTo(PayloadDataType.BINARY).build()` — narrows everything to BINARY.
+- If the binder handles **all types natively**: `PayloadDataTypePolicy.supportAll().build()` — no narrowing (this is the interface's default behavior).
+
+Record the chosen policy and the rationale based on the binder's payload requirements.
+
+**Reference:** `AbcProducerBindingCapabilitiesFactory.java` in `abc-micro-integration/src/main/java/`.
+
 ### Consumer ack callback bridging
 
 When the consumer ack mode maps to `CLIENT_ACK_BY_CALLBACK_HEADER` (from the table above), determine whether the binder needs ack bridging in the micro-integration layer.
@@ -101,6 +115,7 @@ Store as `CONSUMER_ACK_BRIDGING_REQUIRED` (boolean).
 
 - Which `*BindingCapabilitiesFactory` classes to generate (only for supported directions)
 - How `*BindingCapabilities.getAcknowledgmentMode()` determines the ack mode — hardcoded `SYNC`, hardcoded `ASYNC_BY_CALLBACK_HEADER`, or dynamic (from extended producer properties) depending on the binder's async capability
+- What `payloadDataTypePolicy()` the producer capabilities factory declares — narrowing rules derived from the binder's payload requirements
 - Which bean methods to include in `MicroIntegrationApplication.java`
 - Which test classes to generate (`BasicConsumerMessagingIT` and/or `BasicProducerMessagingIT`)
 - Whether consumer ack callback bridging code is generated (`CONSUMER_ACK_BRIDGING_REQUIRED`)
@@ -192,6 +207,8 @@ The interceptor factories (`ConsumerBindingMessageInterceptorFactory`, `Producer
 
 Based on `{BINDER_CLAUDE_MD}`, determine whether the target technology requires message interception — for example, payload format conversion, header enrichment, or content-type adaptation. If the binder handles these internally, interceptors remain no-op scaffolding. Document the decision and rationale.
 
+If an interceptor requires Jackson for payload processing (e.g., constructing a binder-specific JSON type), determine the correct Jackson version. The framework uses Jackson 3.x (`tools.jackson.*`). In third-party binder mode, the binder may bring Jackson 2.x (`com.fasterxml.jackson.*`) onto the classpath — both versions coexist by design (different groupIds and packages). Use Jackson 3.x for any new framework-facing code. Use Jackson 2.x only when the third-party binder's public API exposes Jackson 2.x types that the interceptor must interact with directly. Document the chosen version and imports.
+
 ### Consumer ack callback bridging interceptor
 
 **Only applicable when `CONSUMER_ACK_BRIDGING_REQUIRED` is `true` (from Section 1).**
@@ -228,7 +245,7 @@ Check whether the target technology has Spring Boot auto-configuration classes (
 
 ### application.yml
 
-This file is entirely framework boilerplate — 20 input/output bindings, consumer groups, workflow routing, Solace defaults, management/actuator configuration, and `logging.level.root: warn`. It contains no technology-specific content. No binder or MI logging entries exist here; those appear only in the test profile YAMLs (Section 7).
+This file is entirely framework boilerplate — 20 workflow routing definitions (workflows 0–19, each mapping `input-{N}` to `output-{N}`). It contains no technology-specific content. All other settings that were present in older framework versions (bindings, consumer/producer defaults, Solace defaults, management/actuator configuration, logging) are now provided as framework defaults and are no longer in the generated file. No binder or MI logging entries exist here; those appear only in the test profile YAMLs (Section 7).
 
 ### application-operator.yml
 
@@ -423,19 +440,79 @@ Tests workflow-0: a message originates in the target technology, the binder read
 Tests workflow-0: a message is sent to Solace, the connector framework reads it, and the binder writes it to the target technology.
 
 - **Publish to Solace**: uses `solaceMessaging.produceAsync(...)` to send a `TextMessage`. This is framework code and stays unchanged.
-- **Verify on tech**: the ABC template uses `testContainer.getClient().pollMessage(destination)` returning `Optional<AbcInboundMessage>`, then asserts `inboundMessage.get().getPayload()`. Document the target SDK's poll/read method, the inbound message type, and how to extract and assert the payload.
+- **Verify on tech**: the ABC template uses `testContainer.getClient().pollMessage(destination)` returning `Optional<AbcInboundMessage>`, then asserts `inboundMessage.get().getPayload()`. Document the target SDK's poll/read method, the inbound message type, and how to extract and assert the payload. If the target technology has processing latency between write and read availability (indexing, async pipelines, eventual consistency), specify that verification must use Awaitility polling — see the *Asynchronous verification with Awaitility* subsection below.
 
 ### Batch producer test flow — Solace to Tech (batch)
 
 Tests workflow-0 with Solace batch consumption enabled: multiple messages are sent to Solace, the Solace consumer collects them into a batch, the connector framework routes the batch, and the binder publishes each message to the target technology.
 
 - **Publish to Solace**: `solaceMessaging.produceAsync(10, 0, ...)` sends 10 messages. The lambda creates each `TextMessage` with a unique payload and tracks payloads in an `ArrayList<String>`. This is framework code — stays unchanged.
-- **Verify on tech**: poll all messages from `TARGET_DESTINATION` using the SDK's poll method. Collect received payloads into a list and assert `hasSize(10)` and `containsExactlyInAnyOrderElementsOf(testPayloads)` — order is not guaranteed because batch messages may arrive in any order.
+- **Verify on tech**: poll all messages from `TARGET_DESTINATION` using the SDK's poll method. Collect received payloads into a list and assert `hasSize(10)` and `containsExactlyInAnyOrderElementsOf(testPayloads)` — order is not guaranteed because batch messages may arrive in any order. When Awaitility-based verification is specified, wrap the entire poll-and-assert block inside the `untilAsserted` lambda.
 - **Profile**: uses `BATCH_TEST_PROFILE` (`"messaging-batch-producer"`) which activates the batch producer YAML.
 
 ### Health check
 
 Both test classes include `testHealthIndicatorsUp` which starts the connector and verifies the actuator health endpoint reports both binders as UP. The `HealthAssertions` utility checks `jsonPath("components.binders.components.{binder-name}")`. Document the resolved binder name for the JSON path.
+
+### Asynchronous verification with Awaitility
+
+Some target technologies have processing latency between write and read availability — for example, vector databases that build indexes, embedding pipelines, search engines with refresh intervals, or eventually consistent stores. For these technologies, immediate synchronous poll-then-assert fails intermittently because the data is not yet queryable when verification runs.
+
+When the target technology exhibits this behavior, document in the Test Java Plan that verification must use `Awaitility` polling instead of immediate synchronous reads.
+
+Awaitility is provided transitively by the framework test-support dependency (`pubsubplus-connector-framework-test-support-utilities`). If not available on the classpath, add it explicitly to the MI module's POM:
+
+```xml
+<dependency>
+    <groupId>org.awaitility</groupId>
+    <artifactId>awaitility</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+**Pattern** (producer test — single message):
+
+```java
+import org.awaitility.Awaitility;
+import java.util.concurrent.TimeUnit;
+
+// After publishing to Solace via solaceMessaging.produceAsync(...)
+Awaitility.await()
+    .atMost(60, TimeUnit.SECONDS)
+    .untilAsserted(() -> {
+        // Poll the target technology using the SDK client
+        List<ResultType> results = targetClient.readAll(TARGET_DESTINATION);
+        assertThat(results).isNotEmpty();
+        // Extract payload using SDK-specific accessor
+        List<String> receivedPayloads = results.stream()
+            .map(r -> r.getPayloadField())
+            .toList();
+        assertThat(receivedPayloads).anyMatch(p -> p.contains(testPayload));
+    });
+```
+
+**Pattern** (producer test — batch):
+
+```java
+Awaitility.await()
+    .atMost(120, TimeUnit.SECONDS)
+    .untilAsserted(() -> {
+        List<ResultType> results = targetClient.readAll(TARGET_DESTINATION);
+        assertThat(results).hasSize(10);
+        List<String> receivedPayloads = results.stream()
+            .map(r -> r.getPayloadField())
+            .toList();
+        assertThat(receivedPayloads)
+            .containsExactlyInAnyOrderElementsOf(testPayloads);
+    });
+```
+
+The `untilAsserted` block is re-executed on each poll until all assertions pass or the timeout expires. Set `atMost()` to a timeout appropriate for the technology — 60 seconds for most cases, longer (120s) for batch or heavy processing.
+
+Document in the MI CLAUDE.md (Test Java Plan section):
+- Whether the target technology requires Awaitility-based verification
+- The recommended timeout
+- Additional imports: `org.awaitility.Awaitility`, `java.util.concurrent.TimeUnit`
 
 ### Test imports
 
@@ -469,7 +546,7 @@ Create `{MI_CLAUDE_MD}` consolidating all findings. This file replaces the need 
 | **What This Is** | Module name, binder mode (custom/third-party), verified capabilities |
 | **Binder Identity** | `RESOLVED_BINDER_NAME`, `spring.binders` path, connection property prefix, extended binding namespace |
 | **Binder Capability Modes** | Section 1 — which modes supported with evidence from `{BINDER_CLAUDE_MD}` |
-| **Ack Modes** | Section 1 — consumer and producer ack modes with mapped enum values. Producer factory pattern: hardcoded `SYNC`, hardcoded `ASYNC_BY_CALLBACK_HEADER`, or dynamic (inspects extended producer properties per binding) depending on binder's async capability. `CONSUMER_ACK_BRIDGING_REQUIRED` flag. When bridging required: proprietary header name, ack class, ack/nack methods, and `pseudocode_consumer_ack.txt` as generation template reference |
+| **Ack Modes** | Section 1 — consumer and producer ack modes with mapped enum values. Producer factory pattern: hardcoded `SYNC`, hardcoded `ASYNC_BY_CALLBACK_HEADER`, or dynamic (inspects extended producer properties per binding) depending on binder's async capability. `payloadDataTypePolicy()` narrowing policy with chosen builder pattern and rationale. `CONSUMER_ACK_BRIDGING_REQUIRED` flag. When bridging required: proprietary header name, ack class, ack/nack methods, and `pseudocode_consumer_ack.txt` as generation template reference |
 | **Connection Properties Mapping** | Section 2 — full alignment table, one row per property |
 | **Extended Binding Properties** | Section 3 — consumer and producer property tables (key, default, purpose) |
 | **Message Payload Requirements** | Section 4 — `PRODUCER_PAYLOAD_REQUIREMENT` and `CONSUMER_PAYLOAD_FORMAT`, both directions, even if `none` |
@@ -501,9 +578,11 @@ Before finishing, verify:
 - [ ] Source transformation guide uses fully resolved values in all subsections
 - [ ] No `abc`/`Abc`/`ABC` references remain in any planned content
 - [ ] Payload requirements documented for both directions
+- [ ] `payloadDataTypePolicy()` documented for producer capabilities factory — narrowing policy derived from binder payload requirements
 - [ ] When consumer ack mode maps to `CLIENT_ACK_BY_CALLBACK_HEADER`: decision tree walked — custom binder short-circuits to `CONSUMER_ACK_BRIDGING_REQUIRED = false`; third-party binder reads `CONSUMER_ACK_NATIVE_SPRING_HEADER` from `{BINDER_CLAUDE_MD}` to determine bridging. When bridging required: proprietary header name, ack class, ack/nack methods documented, and `pseudocode_consumer_ack.txt` referenced as generation template
 - [ ] Spring Boot auto-configuration exclusions identified and documented — or confirmed none exist for the target technology
 - [ ] CLAUDE.md contains only resolved values — no placeholders
 - [ ] `application-operator.yml` planned — bindings conditional on verified capabilities, extended properties listed for supported directions only, transform content types validated against payload requirements
 - [ ] Batch producer test profile (`messaging-batch-producer`) planned as derivative of producer profile with `batch-mode: true` and `batch-timeout: 1000` on `input-0` — conditional on `VERIFIED_PRODUCER_SUPPORTED`
 - [ ] Batch producer test method planned — 10 messages, `ArrayList` payload tracking, `containsExactlyInAnyOrderElementsOf` assertion
+- [ ] Test verification strategy documented — synchronous polling or Awaitility-based with timeout (determined by target technology's read-after-write latency)

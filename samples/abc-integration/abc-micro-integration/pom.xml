@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.solace.microintegration.core</groupId>
     <artifactId>micro-integration-build-parent</artifactId>
-    <version>3.1.2</version>
+    <version>4.3.0</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -30,8 +30,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
-  <!--  TODO to be filled up by developers-->
   <developers>
     <developer/>
   </developers>
@@ -62,8 +60,8 @@
 Compiler Properties
 =========================
 -->
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <abc-binder.version>1.0.0-SNAPSHOT</abc-binder.version>
   </properties>
@@ -156,7 +154,12 @@ Compiler Properties
 
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
       <scope>test</scope>
     </dependency>
 

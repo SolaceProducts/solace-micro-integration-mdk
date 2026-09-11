@@ -1,5 +1,7 @@
 package com.solace.samples.microintegration;
 
+import com.solace.connector.core.io.provider.PayloadDataType;
+import com.solace.connector.core.io.provider.PayloadDataTypePolicy;
 import com.solace.connector.core.io.provider.ProducerBindingCapabilities;
 import com.solace.connector.core.io.provider.ProducerBindingCapabilities.ProducerAckMode;
 import com.solace.connector.core.io.provider.ProducerBindingCapabilitiesFactory;
@@ -59,6 +61,26 @@ class AbcProducerBindingCapabilitiesFactory implements ProducerBindingCapabiliti
       // signal when the target system has acknowledged each message.
       // To signal synchronous publishing instead, return ProducerAckMode.SYNC.
       return this.producerAckMode;
+    }
+
+    /**
+     * Declares the payload data-type narrowing policy for this producer binding.
+     * The ABC SDK's AbcOutboundMessage.payload is typed as String, so this binder
+     * can only produce String or Binary payloads natively.
+     *
+     * <p>Effect of this policy:
+     * <ul>
+     *   <li>OBJECT (Map) payloads → narrowed to STRING (framework JSON-serializes via ObjectMapper)</li>
+     *   <li>ARRAY (Collection) payloads → narrowed to STRING (framework JSON-serializes via ObjectMapper)</li>
+     *   <li>STRING payloads → narrowed to STRING (pass-through, already the correct type)</li>
+     *   <li>BINARY (byte[]) payloads → kept as-is (binder handles binary payload separately)</li>
+     * </ul>
+     */
+    @Override
+    public PayloadDataTypePolicy payloadDataTypePolicy() {
+      return PayloadDataTypePolicy.narrowAllTo(PayloadDataType.STRING)
+          .keep(PayloadDataType.BINARY)
+          .build();
     }
   }
 }
