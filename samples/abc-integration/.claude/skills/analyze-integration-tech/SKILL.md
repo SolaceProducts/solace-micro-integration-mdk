@@ -132,15 +132,23 @@ No ecosystem positioning, integration discussions, or forward-looking statements
 
 #### 3.5 Spring Cloud Stream Binder (if available)
 
-Search for a Spring Cloud Stream binder that integrates with the target technology. If no binder exists, state: "No Spring Cloud Stream binder available for {technology}." and skip the rest of this subsection.
+Search for a Spring Cloud Stream binder that integrates with the target technology. **The binder must be compatible with Spring Cloud Stream 5.0.x** (the current major version used by the Solace micro-integration framework). To verify compatibility, check the binder's POM or release notes for its `spring-cloud-stream` dependency version. A binder built against Spring Cloud Stream 4.x or older is NOT compatible.
 
-When a binder is found **and** the project is actively maintained (not archived), emphasize clearly:
+If no binder exists at all, state: "No Spring Cloud Stream binder available for {technology}." and skip the rest of this subsection.
 
-> **An existing Spring Cloud Stream binder is available for {technology}. No custom binder implementation is required.** The binder can be added to any Spring Cloud Stream application as a Maven dependency. GitHub repository: {url}
+When a binder is found **and** the project is actively maintained (not archived) **and** the latest release is compatible with Spring Cloud Stream 5.0.x, emphasize clearly:
+
+> **An existing Spring Cloud Stream binder is available for {technology} and is compatible with Spring Cloud Stream 5.0.x. No custom binder implementation is required.** The binder can be added to any Spring Cloud Stream application as a Maven dependency. GitHub repository: {url}
+
+When a binder exists but the latest release is **only compatible with Spring Cloud Stream 4.x or older**, state clearly:
+
+> **A Spring Cloud Stream binder exists for {technology}, but its latest release is built against Spring Cloud Stream {detected-version} and is NOT compatible with the required Spring Cloud Stream 5.0.x.** Using this binder would cause runtime class/method incompatibilities. **A custom binder implementation is recommended instead.** The existing binder source may still be useful as a reference for understanding the technology's integration patterns. GitHub repository: {url}
+
+When an incompatible binder is found, still document it fully (all sub-sections below) as a reference, but prefix the section with the incompatibility warning above. The documented properties, authentication strategies, and patterns remain valuable as input for custom binder development.
 
 When a binder exists, document the following:
 
-- **Project Status**: Whether the binder repository is actively maintained or archived. Include the date of the last release or last commit if the repository appears inactive. If archived, state clearly: "This binder is archived and no longer maintained — a custom binder may be required."
+- **Project Status & Compatibility**: Whether the binder repository is actively maintained or archived, and whether the latest release is compatible with Spring Cloud Stream 5.0.x. Include the date of the last release or last commit. Report the Spring Cloud Stream version the binder depends on (e.g., "Built against Spring Cloud Stream 4.1.x"). If archived, state: "This binder is archived and no longer maintained — a custom binder is required." If the binder is active but incompatible with SCS 5.0.x, state: "This binder's latest release targets Spring Cloud Stream {version} and is not compatible with the required 5.0.x — a custom binder is recommended."
 - **Documentation & Source Links**: Official documentation URL and GitHub repository URL. The GitHub URL is critical — it must always be included so downstream skills and developers can reference the binder source.
 - **Maven Dependency Management**: Complete Maven BOM and dependency declarations needed to add the binder to a Spring Boot application. Include both BOM import in `<dependencyManagement>` and the runtime dependency. Look up latest versions from Maven Central.
   ```xml
@@ -229,6 +237,7 @@ When a binder exists, document the following:
 - Use real dockerized backends for testing, NOT mocks
 - Integration test examples using actual database instances
 - JUnit 5 integration with TestContainer lifecycle management
+- **Testcontainers version**: Research and document Testcontainers **2.x** modules (groupId: `org.testcontainers`, version `2.x.x`). The JUnit 5 integration artifact in Testcontainers 2.x is `testcontainers-junit-jupiter` (not the legacy 1.x name `junit-jupiter`). Always verify current artifact names from Maven Central.
 
 #### 5.2 Official Docker Images for Local Development
 - Official Docker images with specific tags and versions
@@ -349,6 +358,8 @@ All Java code examples in the report must:
 2. **Organize imports** in standard order: java/javax, third-party libraries, technology-specific
 3. **Use specific class imports**, not wildcards
 4. **Include static imports** when necessary (e.g., static assertions in tests)
+5. **Target Java 21** as the minimum runtime — prefer modern patterns where natural (e.g., try-with-resources, `var` for local type inference, text blocks for multi-line strings) but keep examples readable for developers on Java 21+
+6. **Jackson 3.x imports** — when Jackson is used in examples (JSON serialization/deserialization), use `tools.jackson.*` package imports (Jackson 3.x), not the legacy `com.fasterxml.jackson.*` (Jackson 2.x). Exception: if the technology's own SDK bundles Jackson 2.x internally, document that fact but still use Jackson 3.x in standalone examples
 
 Only include framework-specific imports (Spring, etc.) when that framework is being demonstrated.
 

@@ -47,6 +47,8 @@ These rules apply to **every** file generated from an ABC template in this file.
 8. **No leftover template references**: Generated files must not contain `com.solace.samples`, `abc`, `Abc`, or `ABC` (except in comments that explicitly reference the template origin).
 9. **All imports explicit**: No wildcard imports.
 10. **No useless comments**: Do not carry over template boilerplate comments. Only retain comments that provide genuine value.
+11. **Jackson 3.x**: If the generated binder uses Jackson directly (e.g., `ObjectMapper` for JSON payload conversion, `JsonNode` for structured data), use the Jackson 3.x package names and Maven coordinates. Imports: `tools.jackson.core.*`, `tools.jackson.databind.*`, `tools.jackson.dataformat.*`, `tools.jackson.datatype.*` (not `com.fasterxml.jackson.*`). POM dependency: `<groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId>` — version is managed by the framework parent BOM, do not specify a version. Use `JacksonException` (unchecked `RuntimeException`) instead of `JsonProcessingException` (checked, deleted in Jackson 3.x). Exception: `com.fasterxml.jackson.annotation.*` is unchanged across Jackson 2.x/3.x.
+12. **Health API (Spring Boot 4)**: The health contributor API moved packages in Spring Boot 4. Use the v4 imports from the ABC template — not the old `org.springframework.boot.actuate.health.*` paths. Key replacements: `o.s.b.actuate.health.Health` → `o.s.b.health.contributor.Health`, `o.s.b.actuate.health.HealthIndicator` → `o.s.b.health.contributor.HealthIndicator`, `o.s.b.actuate.autoconfigure.health.ConditionalOnEnabledHealthIndicator` → `o.s.b.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator`. If using `@ConditionalOnClass(name = "...")` with a health class string literal, update the string to the new package path. If the generated binder implements `CompositeHealthContributor`, the contract changed: the `iterator()` method returning `Iterator<NamedContributor<HealthContributor>>` is replaced by `stream()` returning `Stream<Entry>` — use `new Entry(key, value)` instead of `NamedContributor.of(key, value)`.
 
 ---
 
@@ -173,7 +175,7 @@ Implements `ProvisioningProvider`. Pass-through only — returns destination rec
   - If `BINDER_TYPE` contains `producer` → return `new {Tech}OutboundMessageHandler(...)` with connection properties, producer destination, and error channel
   - Else → `throw new UnsupportedOperationException("Producer not supported")`
 - `createConsumerEndpoint()`:
-  - If `BINDER_TYPE` contains `consumer` **and** `.claude/skills/add-binder/generate-consumer.md` contains actual generation steps (not just a placeholder): return `new {Tech}InboundChannelAdapter(...)` with connection properties and consumer destination. Import `{Tech}InboundChannelAdapter` from the `inbound` subpackage.
+  - If `BINDER_TYPE` contains `consumer` **and** `.claude/skills/add-binder/generate-consumer.md` contains actual generation steps (not just a placeholder): return `new {Tech}InboundChannelAdapter(...)` with connection properties and consumer destination. Import `{Tech}InboundChannelAdapter` from the `inbound` subpackage. Immediately after creating the adapter, call `channelAdapter.setBeanFactory(getBeanFactory());` **before** registering error infrastructure — omitting this silently breaks bean-factory-dependent behavior inside the adapter (e.g., header enrichers, converters resolved via the context).
   - If `BINDER_TYPE` contains `consumer` but `generate-consumer.md` is a placeholder or has no generation steps: treat the same as "consumer not supported" below. Print a warning: **"Consumer requested in BINDER_TYPE but consumer generation is not yet implemented — `createConsumerEndpoint` will throw UnsupportedOperationException."**
   - Else → `throw new UnsupportedOperationException("Consumer not supported")`
 - Delegate `getExtendedProducerProperties`, `getDefaultsPrefix`, `getExtendedPropertiesEntryClass` to `extendedBindingProperties`
@@ -201,9 +203,41 @@ Implements `ProvisioningProvider`. Pass-through only — returns destination rec
 
 ---
 
-## Step 6: Generate META-INF registration files
+## Step 5a: Generate package-info.java files
 
 **Blocked by:** Step 5 must complete successfully.
+
+Each generated package must have a `package-info.java` with `@NullMarked` (JSpecify) for package-level null-safety. Read any `package-info.java` in the ABC template (e.g., `{ABC_MAIN}/package-info.java`) for the exact structure. The `org.jspecify:jspecify` dependency is managed transitively by the framework parent (`pubsubplus-connector-component-build-parent` 4.3.0) — no additional POM dependency is required.
+
+**Content for each file:**
+
+```java
+@NullMarked
+package {BINDER_PACKAGE}.{subpackage};
+
+import org.jspecify.annotations.NullMarked;
+```
+
+For the root package, use `{BINDER_PACKAGE}` without a subpackage suffix.
+
+**Files to generate:**
+
+| Condition | Output (relative to `{BINDER_TARGET_SRC_DIR}`) |
+|---|---|
+| always | `package-info.java` |
+| always | `config/package-info.java` |
+| always | `properties/package-info.java` |
+| always | `provisioning/package-info.java` |
+| always | `util/package-info.java` |
+| `BINDER_TYPE` contains `producer` | `outbound/package-info.java` |
+| `BINDER_TYPE` contains `consumer` | `inbound/package-info.java` |
+| `BINDER_TYPE` contains `consumer` | `inbound/acknowledge/package-info.java` |
+
+---
+
+## Step 6: Generate META-INF registration files
+
+**Blocked by:** Step 5a must complete successfully.
 
 Template references:
 - `{ABC_RES}/META-INF/spring.binders`
@@ -242,7 +276,7 @@ org.springframework.boot.web.client.RestTemplateBuilder
 
 **For the target technology**, inspect how `IOUtil.create{Tech}Client(...)` constructs the SDK client and what framework beans it requires. Common entries include:
 - `org.springframework.boot.web.client.RestTemplateBuilder` — if the SDK uses `RestTemplate` / `RestClient`
-- `com.fasterxml.jackson.databind.ObjectMapper` — if the SDK requires Jackson for serialisation
+- `tools.jackson.databind.ObjectMapper` — if the SDK requires Jackson for serialisation
 - `io.netty.channel.EventLoopGroup` — if the SDK uses Netty for async I/O
 - `org.apache.http.impl.client.HttpClientBuilder` — if the SDK uses Apache HttpClient
 
@@ -282,6 +316,14 @@ Verify that every file this module is responsible for exists and is non-empty. A
 | 15 | always | `src/main/resources/META-INF/spring.binders` |
 | 16 | always | `src/main/resources/META-INF/shared.beans` |
 | 17 | always | `src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| 18 | always | `src/main/java/{pkg}/package-info.java` |
+| 19 | always | `src/main/java/{pkg}/config/package-info.java` |
+| 20 | always | `src/main/java/{pkg}/properties/package-info.java` |
+| 21 | always | `src/main/java/{pkg}/provisioning/package-info.java` |
+| 22 | always | `src/main/java/{pkg}/util/package-info.java` |
+| 23 | `BINDER_TYPE` contains `producer` | `src/main/java/{pkg}/outbound/package-info.java` |
+| 24 | `BINDER_TYPE` contains `consumer` | `src/main/java/{pkg}/inbound/package-info.java` |
+| 25 | `BINDER_TYPE` contains `consumer` | `src/main/java/{pkg}/inbound/acknowledge/package-info.java` |
 
 **Validation procedure:**
 

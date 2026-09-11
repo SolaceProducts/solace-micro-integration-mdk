@@ -194,14 +194,14 @@ Rules are organized per module to clarify exactly what to transform, what to omi
 
 **Transform:**
 
-| Template value | Generated value |
+| Template value                                                                       | Generated value |
 |--------------------------------------------------------------------------------------|---|
-| `abc-test-support` (project `<artifactId>`) | `TEST_SUPPORT_ARTIFACT_ID` |
-| `com.solace.samples` (project `<groupId>`) | `PROJECT_ROOT_GROUP_ID` |
-| `1.0.0-SNAPSHOT` (project `<version>` and sibling cross-reference versions) | `PROJECT_VERSION` |
-| `3.1.2` (in `micro-integration-platform-bom` `<version>`)                            | `MICRO_INTEGRATION_PLATFORM_BOM_VERSION` |
-| `17` (in `maven.compiler.source`, `maven.compiler.target`, `maven.compiler.release`) | `JAVA_VERSION` |
-| Entire `abc-client` `<dependency>` block | `CLIENT_SDK_DEPENDENCY` value (apply before groupId transformation) |
+| `abc-test-support` (project `<artifactId>`)                                          | `TEST_SUPPORT_ARTIFACT_ID` |
+| `com.solace.samples` (project `<groupId>`)                                           | `PROJECT_ROOT_GROUP_ID` |
+| `1.0.0-SNAPSHOT` (project `<version>` and sibling cross-reference versions)          | `PROJECT_VERSION` |
+| `4.3.0` (in `micro-integration-platform-bom` `<version>`)                            | `MICRO_INTEGRATION_PLATFORM_BOM_VERSION` |
+| `21` (in `maven.compiler.source`, `maven.compiler.target`, `maven.compiler.release`) | `JAVA_VERSION` |
+| Entire `abc-client` `<dependency>` block                                             | `CLIENT_SDK_DEPENDENCY` value (apply before groupId transformation) |
 
 **Omit:**
 
@@ -221,15 +221,15 @@ Rules are organized per module to clarify exactly what to transform, what to omi
 
 **Transform:**
 
-| Template value | Generated value |
+| Template value                                                                | Generated value |
 |-------------------------------------------------------------------------------|---|
-| `spring-cloud-stream-binder-abc` (project `<artifactId>`) | `BINDER_ARTIFACT_ID` |
-| `com.solace.samples` (project `<groupId>` and sibling cross-references) | `PROJECT_ROOT_GROUP_ID` |
-| `1.0.0-SNAPSHOT` (project `<version>` and sibling cross-reference versions) | `PROJECT_VERSION` |
-| `3.1.2` (in `pubsubplus-connector-component-build-parent` parent `<version>`) | `BINDER_BUILD_PARENT_VERSION` |
-| `17` (in `maven.compiler.release`) | `JAVA_VERSION` |
-| Entire `abc-client` `<dependency>` block | `CLIENT_SDK_DEPENDENCY` value (apply before groupId transformation) |
-| `abc-test-support` (in dependency `<artifactId>`) | `TEST_SUPPORT_ARTIFACT_ID` |
+| `spring-cloud-stream-binder-abc` (project `<artifactId>`)                     | `BINDER_ARTIFACT_ID` |
+| `com.solace.samples` (project `<groupId>` and sibling cross-references)       | `PROJECT_ROOT_GROUP_ID` |
+| `1.0.0-SNAPSHOT` (project `<version>` and sibling cross-reference versions)   | `PROJECT_VERSION` |
+| `4.3.0` (in `pubsubplus-connector-component-build-parent` parent `<version>`) | `BINDER_BUILD_PARENT_VERSION` |
+| `21` (in `maven.compiler.release`)                                            | `JAVA_VERSION` |
+| Entire `abc-client` `<dependency>` block                                      | `CLIENT_SDK_DEPENDENCY` value (apply before groupId transformation) |
+| `abc-test-support` (in dependency `<artifactId>`)                             | `TEST_SUPPORT_ARTIFACT_ID` |
 
 **Omit:**
 
@@ -252,14 +252,14 @@ The `<licenses>` block and the TODO comment above it must be copied **verbatim**
 
 **Transform (common — always applied):**
 
-| Template value | Generated value |
+| Template value                                                          | Generated value |
 |-------------------------------------------------------------------------|---|
-| `abc-micro-integration` (project `<artifactId>`) | `INTEGRATION_APP_ARTIFACT_ID` |
+| `abc-micro-integration` (project `<artifactId>`)                        | `INTEGRATION_APP_ARTIFACT_ID` |
 | `com.solace.samples` (project `<groupId>` and sibling cross-references) | `PROJECT_ROOT_GROUP_ID` |
-| `1.0.0-SNAPSHOT` (project `<version>`) | `PROJECT_VERSION` |
-| `3.1.2` (in `micro-integration-build-parent` parent `<version>`)        | `MICRO_INTEGRATION_BUILD_PARENT_VERSION` |
-| `17` (in `maven.compiler.source`, `maven.compiler.target`) | `JAVA_VERSION` |
-| `abc-test-support` (in dependency `<artifactId>`) | `TEST_SUPPORT_ARTIFACT_ID` |
+| `1.0.0-SNAPSHOT` (project `<version>`)                                  | `PROJECT_VERSION` |
+| `4.3.0` (in `micro-integration-build-parent` parent `<version>`)        | `MICRO_INTEGRATION_BUILD_PARENT_VERSION` |
+| `21` (in `maven.compiler.source`, `maven.compiler.target`)              | `JAVA_VERSION` |
+| `abc-test-support` (in dependency `<artifactId>`)                       | `TEST_SUPPORT_ARTIFACT_ID` |
 
 
 

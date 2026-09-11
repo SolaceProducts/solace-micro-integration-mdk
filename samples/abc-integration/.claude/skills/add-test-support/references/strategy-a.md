@@ -1,6 +1,6 @@
 # Strategy A: Use Official Testcontainers Module
 
-Use this strategy when an official Java Testcontainers module is available for the target technology (e.g., `org.testcontainers:influxdb`, `org.testcontainers:postgresql`).
+Use this strategy when an official Java Testcontainers module is available for the target technology (e.g., `org.testcontainers:testcontainers-influxdb`, `org.testcontainers:testcontainers-postgresql`).
 
 This strategy produces two source files and an integration test that work together:
 
@@ -18,11 +18,11 @@ Read `{TEST_SUPPORT_MODULE_DIR}/pom.xml` and apply these changes:
 
 1. **Add** the official Testcontainers module dependency from `TESTCONTAINERS_MODULE_DEPENDENCY` (configuration.md section 3b) **without** `<scope>` — the wrapper class in `src/main` depends on it directly. Insert the dependency element verbatim from the configured value.
 
-2. **Add** `org.testcontainers:junit-jupiter` with `<scope>test</scope>` if not already present:
+2. **Add** `org.testcontainers:testcontainers-junit-jupiter` with `<scope>test</scope>` if not already present:
    ```xml
    <dependency>
        <groupId>org.testcontainers</groupId>
-       <artifactId>junit-jupiter</artifactId>
+       <artifactId>testcontainers-junit-jupiter</artifactId>
        <scope>test</scope>
    </dependency>
    ```

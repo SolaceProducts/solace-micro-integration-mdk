@@ -2,10 +2,10 @@ package com.solace.samples.microintegration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.solace.connector.test.resources.PubSubPlusExtension;
-import com.solace.connector.test.resources.resource.ConnectorArgsBuilder;
-import com.solace.connector.test.resources.resource.SolaceMessaging;
-import com.solace.connector.test.resources.resource.SolaceQueue;
+import com.solace.connector.test.utilities.PubSubPlusExtension;
+import com.solace.connector.test.utilities.resource.ConnectorArgsBuilder;
+import com.solace.connector.test.utilities.resource.SolaceMessaging;
+import com.solace.connector.test.utilities.resource.SolaceQueue;
 import com.solace.samples.abc.client.AbcClient.AbcOutboundMessage;
 import com.solace.samples.abc.testextension.container.simple.AbcSimpleContainerTestExtension;
 import com.solace.samples.abc.testextension.container.simple.AbcTestContainerWithConnectedClient;

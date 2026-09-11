@@ -180,6 +180,22 @@ These rules apply to every repair in every category:
 4. **Log the repair** — after each repair, print: `Attempt {N}: [{category}] {file} — {one-line fix description}`
 5. **One fix per attempt** — apply one targeted fix per attempt, then re-run the build to check if it resolved the issue. Do not stack multiple speculative fixes in a single attempt.
 
+#### v4 framework migration patterns
+
+The generated micro-integration targets framework 4.3.0 (Spring Boot 4.1.0, Java 21). If a compilation or test failure matches one of these known v4 migration patterns, apply the listed fix directly — do not perform the full investigation cycle (CLAUDE.md → overview report → ABC template). These are mechanical fixes with known solutions.
+
+| Error pattern | Category | Fix |
+|---|---|---|
+| `package com.solace.connector.core.service does not exist` or `cannot find symbol: class WorkflowContext` | Compilation | Workflow API migration. Replace `import com.solace.connector.core.service.WorkflowContext` with `import com.solace.connector.core.topology.MicroIntegrationTopology`. Replace all `WorkflowContext` type references with `MicroIntegrationTopology`. Replace `workflowContext.getWorkflowIdForBinding(bindingName)` with `topology.binding(bindingName).workflowId()`. Note: `topology.binding()` throws `IllegalArgumentException` if the binding is not part of any enabled workflow (the old API returned `null`). Reference: ABC template `abc-micro-integration/src/main/java/.../AbcConsumerBindingMessageInterceptorFactory.java`. |
+| `package com.solace.connector.test.resources does not exist` | Compilation | Test utilities package rename. Replace `com.solace.connector.test.resources` with `com.solace.connector.test.utilities` in all import statements. Reference: ABC template `abc-micro-integration/src/test/java/.../BaseTest.java`. |
+| `package com.fasterxml.jackson.core does not exist` or `package com.fasterxml.jackson.databind does not exist` (in MI source files) | Compilation | Jackson 3.x package rename. Replace `com.fasterxml.jackson.core.*` → `tools.jackson.core.*`, `com.fasterxml.jackson.databind.*` → `tools.jackson.databind.*`, `com.fasterxml.jackson.dataformat.*` → `tools.jackson.dataformat.*`, `com.fasterxml.jackson.datatype.*` → `tools.jackson.datatype.*`. Exception: `com.fasterxml.jackson.annotation.*` is unchanged. Note: in third-party binder mode, Jackson 2.x from the binder and Jackson 3.x from the framework coexist on the classpath by design — only MI module source should use Jackson 3.x. |
+| `cannot find symbol: class JsonProcessingException` (in MI source files) | Compilation | Deleted in Jackson 3.x. Replace with `JacksonException` from `tools.jackson.core`. Remove any `throws JsonProcessingException` declarations — `JacksonException` is an unchecked `RuntimeException`. |
+| Integration test failure where Map or Collection payload arrives at the target technology as a raw object instead of a JSON String | Test assertion | Missing or incorrect `payloadDataTypePolicy()`. Check the producer capabilities factory under `{MI_TARGET_SRC_DIR}`. If it does not override `payloadDataTypePolicy()`, add the override using the policy from `{MI_TARGET_MODULE_DIR}/CLAUDE.md` (Ack Modes section). The most common policy is `PayloadDataTypePolicy.narrowAllTo(PayloadDataType.STRING).keep(PayloadDataType.BINARY).build()`. Reference: ABC template `abc-micro-integration/src/main/java/.../AbcProducerBindingCapabilitiesFactory.java`. |
+
+If a compilation error originates from a **binder or test-support source file** (visible because `-am` compiles upstream modules), do not attempt to fix it here — print: **"Upstream module compilation error — run `/verify-binder` or fix the upstream module first"** and stop.
+
+If a failure does **not** match any pattern in this table and is not an upstream module issue, fall back to the standard fix strategy for its category (read CLAUDE.md, overview report, ABC template).
+
 ---
 
 ### Step 4: Print summary

@@ -1,6 +1,6 @@
 # AI-Native MDK Samples — Agentic Code Generation
 
-Claude Code skills and agents help you generate an entire micro-integration (MI) — including Spring Cloud Stream binders, test support, and the integration application. The skills use the ABC sample project as context: its structure, patterns, and code serve as the reference that the AI builds on when generating MIs for other backend technologies. For this reason, the skills and the agent are distributed as part of this MDK example project, located in the `.claude/skills/` and `.claude/agents/` folders.
+Claude Code skills help you generate an entire micro-integration (MI) — including Spring Cloud Stream binders, test support, and the integration application. The skills use the ABC sample project as context: its structure, patterns, and code serve as the reference that the AI builds on when generating MIs for other backend technologies. For this reason, the skills are distributed as part of this MDK example project, located in the `.claude/skills/` folder.
 ```
 Warning
 
@@ -8,7 +8,7 @@ These skills are powered by language models, which are nondeterministic and may 
 Generated code can vary between runs and may be incorrect, insecure, incomplete, or unsuitable for your environment. 
 You are responsible for reviewing, testing, and validating all generated code before use, especially before deploying to production.
 ```
-You start by researching the target technology, review a generated configuration, and then a single agent prompt produces a full MI with tests and documentation.
+You start by researching the target technology, review a generated configuration, and then a single skill invocation produces a full MI with tests and documentation.
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -16,19 +16,21 @@ You start by researching the target technology, review a generated configuration
 │                 │     │                 │     │                 │     │                 │
 │  Start Claude   │──>  │  Research the   │──>  │  Review and     │──>  │  Generate the   │
 │  Code           │     │  target tech    │     │  edit config    │     │  MI             │
-│                 │     │                 │     │                 │     │  (one prompt)   │
+│                 │     │                 │     │                 │     │  (one skill)    │
 │                 │     │ /analyze-       │     │ /prepare-config │     │                 │
-│                 │     │  integration-   │     │                 │     │  generate-mi    │
-│                 │     │  tech           │     │                 │     │                 │
+│                 │     │  integration-   │     │                 │     │ /generate-mi-   │
+│                 │     │  tech           │     │                 │     │  flow           │
 └─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 ## Prerequisites
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed
-- Java 17+ and Maven available on PATH
+- Java 21+ and Maven available on PATH
 - Docker running (required for Testcontainers-based integration tests)
 - A Claude Pro or Max subscription, or a Claude Code CLI account with sufficient API credit. Generating a full micro-integration project is token-intensive — we recommend at least $50 in credit.
+
+> **Note:** The skills were tested with Claude Code v2.1.266. Any recent version should work — you can check yours with `claude --version`.
 
 ## Step 0: Start Claude Code
 
@@ -41,7 +43,7 @@ claude
 
 For best results, open the `abc-integration` folder in your IDE with the Claude Code IDE plugin. The CLI without IDE integration also works.
 
-All skills and agents expect Claude Code to run from the `abc-integration` root folder.
+All skills expect Claude Code to run from the `abc-integration` root folder.
 
 ### Select the Claude Opus model
 
@@ -67,7 +69,7 @@ For example, to target Neo4j:
 /analyze-integration-tech Neo4j
 ```
 
-This produces a research document covering Java client libraries, Maven dependencies, testing approaches, security, and configuration for the target technology. The report is saved as a markdown file in the project root directory and referenced by downstream skills. The analysis also determines whether an existing third-party Spring Cloud Stream binder is available. If none exists (as is the case for Neo4j), the agent will generate a basic custom binder during project generation. You can extend it with additional features or adjust the configuration later.
+This produces a research document covering Java client libraries, Maven dependencies, testing approaches, security, and configuration for the target technology. The report is saved as a markdown file in the project root directory and referenced by downstream skills. The analysis also determines whether an existing third-party Spring Cloud Stream binder is available. If none exists (as is the case for Neo4j), a basic custom binder is generated during project generation. You can extend it with additional features or adjust the configuration later.
 
 ## Step 2: Prepare configuration
 
@@ -93,27 +95,44 @@ After it completes, open `configuration.md` and:
 
 > **Do not abandon the running session.** The orchestrator does not run in unsafe mode, so it will pause and ask for your permission at various points during execution (file writes, shell commands, etc.). Stay with the session and approve prompts as they appear — leaving it unattended will stall the pipeline.
 
-Launch the orchestrator agent with a prompt:
+Launch the orchestrator skill `/generate-mi-flow`:
 
 ```
-use generate-mi agent to generate microintegration application
+/generate-mi-flow
 ```
 
-The orchestrator reads `configuration.md` and runs five skills in sequence:
+It reads `configuration.md` and runs six skills in sequence:
 
 1. **init-mi-project** — scaffolds the project structure and Maven POMs
 2. **add-test-support** — creates Testcontainer wrappers and JUnit 5 extensions
 3. **add-binder** or **analyze-3party-binder** — generates a custom Spring Cloud Stream binder or analyzes an existing third-party binder
 4. **add-microintegration** — generates the micro-integration application bridging Solace and the target technology
 5. **clean-claude-files** — converts internal CLAUDE.md files into developer-facing reference documentation
+6. **clean-readme-files** — writes README files for the project root and each module
 
-Each skill runs in an isolated subagent. The orchestrator reports pass/fail status after each step and stops on failure.
+Each skill runs in an isolated subagent, so verbose Maven output and repair loops stay out of your session's context.
+
+### Progress reporting
+
+`/generate-mi-flow` prints one line before each step and one line after it, so you can follow the pipeline as it runs:
+
+```
+Binder mode: third-party  ·  target: /path/to/your/new-project
+
+▶ [1/6] init-mi-project — bootstrapping project structure
+✓ [1/6] init-mi-project — PASSED
+▶ [2/6] add-test-support — building Testcontainer support
+✓ [2/6] add-test-support — PASSED
+...
+```
+
+A step that fails prints `✗ [n/6] … — FAILED` with the reason, and the pipeline stops there rather than continuing with a broken project. When all six steps pass, the flow prints a completion report — a summary table of every step's status, the binder mode, and the target project folder.
 
 ### `.TEMP` folder (third-party binder mode)
 
 When using a third-party binder (`analyze-3party-binder`), the skill clones and analyzes the binder's GitHub repository into a `.TEMP` folder at the workspace root. This caches the analysis locally so token-intensive web searches are not repeated on subsequent runs.
 
-The `.TEMP` folder is deleted and recreated each time the generate-mi orchestrator runs a third-party binder analysis. After generation completes, the folder remains for:
+The `.TEMP` folder is deleted and recreated each time `/generate-mi-flow` runs a third-party binder analysis. After generation completes, the folder remains for:
 
 - Inspecting the third-party binder source code
 - Re-running individual skills without re-fetching from GitHub
@@ -125,6 +144,7 @@ The `.TEMP` folder is deleted and recreated each time the generate-mi orchestrat
 |---|---|
 | `/analyze-integration-tech` | Research a technology from a Java development perspective |
 | `/prepare-config` | Pre-fill `configuration.md` from a research document |
+| `/generate-mi-flow` | Run the full generation pipeline end to end (Step 3) |
 | `/init-mi-project` | Bootstrap project folders and Maven POMs |
 | `/add-test-support` | Create Testcontainer wrappers and JUnit 5 extensions |
 | `/add-binder` | Generate a custom Spring Cloud Stream binder |
@@ -134,12 +154,13 @@ The `.TEMP` folder is deleted and recreated each time the generate-mi orchestrat
 | `/verify-microintegration` | Compile and run MI integration tests with auto-repair |
 | `/fix-maven-dependencies` | Detect and fix Maven dependency issues |
 | `/clean-claude-files` | Convert generation docs to developer reference docs |
+| `/clean-readme-files` | Write README files for the project root and each module |
 
 Skills can be run individually for incremental development or re-runs after manual fixes.
 
 ## After generation: continuing in your IDE
 
-Once the `generate-mi` agent finishes, the generated project is a standard Maven multi-module project. You can open it in the IDE of your choice (IntelliJ IDEA, VS Code, Eclipse, etc.) and continue improving it — for example, adding support for more advanced authentication schemes, implementing additional user requirements, or refining error handling and retry logic.
+Once `/generate-mi-flow` finishes, the generated project is a standard Maven multi-module project. You can open it in the IDE of your choice (IntelliJ IDEA, VS Code, Eclipse, etc.) and continue improving it — for example, adding support for more advanced authentication schemes, implementing additional user requirements, or refining error handling and retry logic.
 
 To build the project:
 

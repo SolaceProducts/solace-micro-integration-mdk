@@ -3,10 +3,10 @@ package com.solace.samples.microintegration;
 import com.solace.connector.core.customizer.ConsumerBindingMessageInterceptor;
 import com.solace.connector.core.customizer.ConsumerBindingMessageInterceptorFactory;
 import com.solace.connector.core.properties.ConnectorProperties;
-import com.solace.connector.core.service.WorkflowContext;
+import com.solace.connector.core.topology.MicroIntegrationTopology;
 import org.springframework.cloud.stream.binder.ConsumerProperties;
 import org.springframework.core.Ordered;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Example implementation of a ConsumerBindingMessageInterceptorFactory for the abc binder. This
@@ -17,15 +17,15 @@ public class AbcConsumerBindingMessageInterceptorFactory implements
     ConsumerBindingMessageInterceptorFactory {
 //
 //  private final ConnectorProperties connectorProperties;
-//  private final WorkflowContext workflowContext;
+//  private final MicroIntegrationTopology topology;
 
   public AbcConsumerBindingMessageInterceptorFactory(ConnectorProperties connectorProperties,
-      WorkflowContext workflowContext) {
-//WorkflowContext and ConnectorProperties can be used determining for interceptor creation
+      MicroIntegrationTopology topology) {
+//MicroIntegrationTopology and ConnectorProperties can be used determining for interceptor creation
 // if needed based on the connector properties or to
 // provide context to created interceptors if needed
 //    this.connectorProperties = connectorProperties;
-//    this.workflowContext = workflowContext;
+//    this.topology = topology;
   }
 
   @Nullable

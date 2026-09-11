@@ -24,7 +24,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * <pre>
  *   The image will be built from the JAR file produced by the abc-service module.
  *   The JAR path is provided via a system property (set by the Maven Failsafe plugin) or defaults to a relative path.
- *   The image is built using the Eclipse Temurin 17 JRE base image and exposes the abc service port.
+ *   The image is built using the Eclipse Temurin 21 JRE base image and exposes the abc service port.
  * </pre>
  * Note: under normal circumstances, one would use a vendor provided official docker image or even
  * better an official test container.
@@ -57,7 +57,7 @@ public class AbcTestContainer extends
       LOGGER.info("Building Docker image with Jib from: {}", jarFile.toAbsolutePath());
 
       // Build the container image using Jib
-      JibContainerBuilder builder = Jib.from("eclipse-temurin:17-jre")
+      JibContainerBuilder builder = Jib.from("eclipse-temurin:26-jre-ubi10-minimal")
           .addLayer(
               List.of(jarFile),
               AbsoluteUnixPath.get("/app")

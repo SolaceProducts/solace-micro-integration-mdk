@@ -61,7 +61,7 @@ For the proxy approach, substitute `AbcProxyTestExtension` and `AbcServiceProxy`
 
 ## Dependencies
 
-- Java 17+
+- Java 21+
 - Docker (container approaches only)
 - JUnit 5
 - Testcontainers (container approaches only)

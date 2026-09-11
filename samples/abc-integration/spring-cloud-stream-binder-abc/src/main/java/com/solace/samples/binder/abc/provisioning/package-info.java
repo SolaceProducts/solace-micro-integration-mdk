@@ -1,4 +1,4 @@
 @NullMarked
-package com.solace.samples.microintegration;
+package com.solace.samples.binder.abc.provisioning;
 
 import org.jspecify.annotations.NullMarked;
