@@ -1,0 +1,7 @@
+# Default owners for everything in this repository.
+#
+# A CODEOWNERS entry only works if the team has write access to this repo.
+# Confirm that for @SolaceProducts/event-integration before enabling
+# 'require_code_owner_review' in the branch ruleset - otherwise no reviewer can
+# satisfy the rule and pull requests become unmergeable.
+* @SolaceProducts/event-integration
