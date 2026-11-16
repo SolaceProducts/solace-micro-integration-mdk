@@ -20,7 +20,12 @@ jobs:
     name: build-success
     runs-on: ubuntu-latest
     steps:
+      # persist-credentials:false keeps GITHUB_TOKEN out of .git/config on the
+      # runner. The build step below executes third-party Maven plugins and
+      # test code, any of which could otherwise read it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # JDK 25 is the toolchain only. The POMs target Java 21
       # (maven.compiler.release / source / target), so the emitted bytecode
