@@ -1,0 +1,99 @@
+version: 2
+
+# No 'registries' block. Every dependency in this repository - including the
+# Solace build parents and the micro-integration platform BOM - resolves from
+# Maven Central. The SolaceDev template repos declare a maven.pkg.github.com
+# registry using PACKAGES_ADMIN_USER / PACKAGES_ADMIN_TOKEN; those secrets do
+# not exist in SolaceProducts and this repo never reads that registry, so
+# copying the block would only make Dependabot authenticate for nothing.
+
+updates:
+  - package-ecosystem: "maven"
+    # The repository root has no POM. This is the aggregator; Dependabot
+    # traverses its <modules> down to abc-parent/{abc-service,abc-client},
+    # abc-test-support, spring-cloud-stream-binder-abc and
+    # abc-micro-integration.
+    #
+    # Do NOT split this into one entry per module to reduce PR count - that
+    # makes it worse, because each directory gets its own update job and
+    # therefore its own PR per coordinate. Grouping (below) is the right lever.
+    directory: "/samples/abc-integration"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    #
+    # There is deliberately NO 'allow' block here. Please do not add one.
+    #
+    # 'allow' REPLACES Dependabot's default of watching every dependency
+    # declared in a manifest, and it gates security updates as well as version
+    # updates. It is also a standing commitment to hand-edit this file whenever
+    # someone adds a dependency, with no error raised when that is forgotten.
+    # PR volume is controlled below by 'groups', 'cooldown' and the
+    # semver-major 'ignore' - none of which go stale when a dependency is
+    # added.
+    #
+    ignore:
+      # Major bumps are planned, ticketed migrations here, not bot work.
+      #
+      # Accepted trade-off: this also suppresses a security update whose only
+      # available fix is a major bump. The Dependabot alert still fires; no
+      # pull request opens.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    cooldown:
+      # Soak third-party releases for 3 days so we are not the first to hit a
+      # bad one. Solace artifacts are our own CI-gated builds, so take those
+      # immediately.
+      #
+      # 'default-days' is what makes this block do anything - without a number
+      # the 'exclude' has no waiting period to carve an exception out of.
+      #
+      # Cooldown applies to version updates only. A security update opens a
+      # pull request immediately whatever is set here.
+      default-days: 3
+      exclude:
+        - "com.solace.*"
+    groups:
+      # One release train, three coordinates pinned at 4.3.0:
+      #
+      #   com.solace.connector.core:pubsubplus-connector-component-build-parent
+      #     (parent of spring-cloud-stream-binder-abc)
+      #   com.solace.microintegration.core:micro-integration-build-parent
+      #     (parent of abc-micro-integration)
+      #   com.solace.microintegration.core:micro-integration-platform-bom
+      #     (imported by abc-test-support)
+      #
+      # Ungrouped, one upstream release opens three pull requests that have to
+      # land together or the modules straddle versions.
+      #
+      # The patterns carry no colon, so they also cover the .io / .test
+      # sub-groupIds (pubsubplus-connector-io-common,
+      # pubsubplus-connector-framework-test-support-utilities).
+      #
+      # version-updates and security-updates cannot share a group, hence each
+      # pattern set is declared twice.
+      solace-platform:
+        applies-to: version-updates
+        patterns:
+          - "com.solace.connector.core*"
+          - "com.solace.microintegration.core*"
+      solace-platform-security:
+        applies-to: security-updates
+        patterns:
+          - "com.solace.connector.core*"
+          - "com.solace.microintegration.core*"
+
+      # Everything else is deliberately left ungrouped: commons-compress,
+      # jib-core, dotenv-java, error_prone_annotations and the Maven plugins
+      # are independent releases, and batching unrelated coordinates makes a
+      # CI failure harder to bisect.
+      #
+      # No Kafka or Camel groups: neither groupId is declared anywhere in this
+      # project, and a pattern that matches nothing is worse than no pattern -
+      # it reads as coverage while providing none.
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

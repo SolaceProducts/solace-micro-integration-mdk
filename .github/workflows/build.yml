@@ -1,0 +1,49 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # This display name IS the required status check context in the branch
+    # ruleset. Changing it silently breaks the merge gate.
+    name: build-success
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # JDK 25 is the toolchain only. The POMs target Java 21
+      # (maven.compiler.release / source / target), so the emitted bytecode
+      # stays 21 and the samples remain consumable on 21.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # The repo root has no POM; samples/abc-integration/pom.xml is the
+      # aggregator over abc-parent, abc-test-support,
+      # spring-cloud-stream-binder-abc and abc-micro-integration.
+      #
+      # Run the aggregator, never individual modules: abc-parent must build
+      # abc-service first, because the binder's Failsafe configuration points
+      # JAR_PATH at abc-parent/abc-service/target/abc-service-${project.version}.jar
+      # for the jib image build.
+      #
+      # 'verify' runs the Failsafe integration tests, which use Testcontainers
+      # against public images only - no registry login, no external endpoint,
+      # no credentials. Drop to 'test' if PR turnaround matters more than
+      # integration coverage.
+      - name: Build and test
+        working-directory: samples/abc-integration
+        run: ./mvnw -B verify
