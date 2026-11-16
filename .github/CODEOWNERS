@@ -4,4 +4,4 @@
 # Confirm that for @SolaceProducts/event-integration before enabling
 # 'require_code_owner_review' in the branch ruleset - otherwise no reviewer can
 # satisfy the rule and pull requests become unmergeable.
-* @SolaceProducts/event-integration
+#* @SolaceProducts/event-integration
