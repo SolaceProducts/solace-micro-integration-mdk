@@ -1,0 +1,193 @@
+From 5fd31b9cc0c98e5fc6b5359ac418cf9a2edc8482 Mon Sep 17 00:00:00 2001
+From: jessemenning <jesse.menning@gmail.com>
+Date: Mon, 16 Nov 2026 21:11:06 -0500
+Subject: [PATCH] fix(workflow): preserve splitter TARGET_DESTINATION through
+ transform
+
+A native MessageSplitter returns per-element headers (including
+BinderHeaders.TARGET_DESTINATION) so it can route its own fanned-out
+outputs, but BatchMessagePipe.buildTransformedMessage took the headers
+from applyTransformations(), and TransformMessageHandler rebuilds target
+headers from the serializer -- silently dropping the splitter's routing
+header. A splitter therefore could not route its own outputs (MDK #17).
+
+Re-apply the splitter's TARGET_DESTINATION at the split call site, gated
+on messageSplitterHandler != null and only when the transform did not
+already set a destination, so a transform that deliberately routes still
+wins. Scoped to the split path to keep non-split flows untouched.
+
+Add BatchMessagePipeTest cases: the routing header survives a transform
+that drops it, and a transform-set destination is not overridden.
+
+Refs SolaceProducts/solace-micro-integration-mdk#17
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+---
+ .../core/workflow/BatchMessagePipe.java       |  24 +++-
+ .../core/workflow/BatchMessagePipeTest.java   | 103 ++++++++++++++++++
+ 2 files changed, 126 insertions(+), 1 deletion(-)
+
+diff --git a/pubsubplus-connector-framework/src/main/java/com/solace/connector/core/workflow/BatchMessagePipe.java b/pubsubplus-connector-framework/src/main/java/com/solace/connector/core/workflow/BatchMessagePipe.java
+index 9b522b30..a7f7aeb0 100644
+--- a/pubsubplus-connector-framework/src/main/java/com/solace/connector/core/workflow/BatchMessagePipe.java
++++ b/pubsubplus-connector-framework/src/main/java/com/solace/connector/core/workflow/BatchMessagePipe.java
+@@ -9,6 +9,7 @@ import java.util.Map;
+ import org.jspecify.annotations.Nullable;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
++import org.springframework.cloud.stream.binder.BinderHeaders;
+ import org.springframework.messaging.Message;
+ import org.springframework.messaging.MessageHeaders;
+ import org.springframework.messaging.support.MessageBuilder;
+@@ -77,7 +78,9 @@ final class BatchMessagePipe extends AbstractMessagePipe {
+       final Message<?> transformedMessage = applyTransformations(payload, headers);
+ 
+       outputBatchPayloads[i] = transformedMessage.getPayload();
+-      outputBatchHeaders[i] = transformedMessage.getHeaders();
++      outputBatchHeaders[i] = messageSplitterHandler != null
++          ? preserveSplitterRouting(headers, transformedMessage.getHeaders())
++          : transformedMessage.getHeaders();
+     }
+ 
+     MessageHeaderAccessor outputBatchHeaderAccessor =
+@@ -96,4 +99,23 @@ final class BatchMessagePipe extends AbstractMessagePipe {
+         List.of(outputBatchPayloads),
+         outputBatchHeaderAccessor.getMessageHeaders());
+   }
++
++  /**
++   * The transform rebuilds target headers from the serializer, dropping any dynamic routing header
++   * a {@code MessageSplitter} set on its output rows. Re-apply the splitter's
++   * {@link BinderHeaders#TARGET_DESTINATION} so a splitter can route its own outputs; a transform
++   * that deliberately set a destination still wins, since we only re-apply when the transformed
++   * headers don't already carry one.
++   */
++  private static MessageHeaders preserveSplitterRouting(
++      MessageHeaders splitterHeaders, MessageHeaders transformedHeaders) {
++    Object target = splitterHeaders.get(BinderHeaders.TARGET_DESTINATION);
++    if (target == null || transformedHeaders.containsKey(BinderHeaders.TARGET_DESTINATION)) {
++      return transformedHeaders;
++    }
++    MessageHeaderAccessor accessor = MessageHeaderAccessor.fromMessageHeaders(transformedHeaders);
++    accessor.setLeaveMutable(true);
++    accessor.setHeader(BinderHeaders.TARGET_DESTINATION, target);
++    return accessor.getMessageHeaders();
++  }
+ }
+diff --git a/pubsubplus-connector-framework/src/test/java/com/solace/connector/core/workflow/BatchMessagePipeTest.java b/pubsubplus-connector-framework/src/test/java/com/solace/connector/core/workflow/BatchMessagePipeTest.java
+index cd648770..6c3fe4d7 100644
+--- a/pubsubplus-connector-framework/src/test/java/com/solace/connector/core/workflow/BatchMessagePipeTest.java
++++ b/pubsubplus-connector-framework/src/test/java/com/solace/connector/core/workflow/BatchMessagePipeTest.java
+@@ -619,6 +619,109 @@ class BatchMessagePipeTest {
+     assertThat(result.getPayload()).isEqualTo(List.of("p1", "p2"));
+   }
+ 
++  @Test
++  void testSplitterRoutingHeaderPreservedWhenTransformDropsIt() {
++    // A splitter can emit a per-row TARGET_DESTINATION to route its own outputs, but the transform
++    // rebuilds target headers from the serializer and drops it. The split path must re-apply it.
++    BatchMessagePipe pipe = new BatchMessagePipe(
++        DEFAULT_BATCH_MESSAGE_FORMAT,
++        DEFAULT_BATCH_MESSAGE_FORMAT,
++        outputSender,
++        transformMessageHandler,
++        null,
++        null,
++        null,
++        messageSplitterHandler);
++
++    String targetDestination = "efom/flight/event/v1/sfdps/FLIGHT_UPDATE/x";
++
++    List<Object> batchPayloads = List.of("[{\"a\":1}]");
++    List<Map<String, Object>> batchHeaders = List.of(Map.of("src", "row-1"));
++    Message<?> inputMessage = MessageBuilder.withPayload(batchPayloads)
++        .setHeader(BinderHeaders.BATCH_HEADERS, batchHeaders)
++        .setHeader("batch-header", "batch-value")
++        .build();
++
++    // Splitter emits one row carrying its own dynamic routing destination.
++    Mockito.doReturn(new SplitBatch(
++            List.of(Map.of("a", 1)),
++            List.of(Map.of(BinderHeaders.TARGET_DESTINATION, targetDestination))))
++        .when(messageSplitterHandler).split(
++            Mockito.eq("[{\"a\":1}]"),
++            Mockito.eq(Map.of("src", "row-1")),
++            Mockito.any(MessageHeaders.class));
++
++    // Transform rebuilds headers from the serializer, dropping TARGET_DESTINATION.
++    Message<?> transformedMessage = MessageBuilder.withPayload("transformed")
++        .setHeader("transformed-header", "transformed-value")
++        .build();
++    Mockito.doReturn(transformedMessage)
++        .when(transformMessageHandler)
++        .handleMessage(Mockito.eq(Map.of("a", 1)), Mockito.any(MessageHeaders.class));
++
++    pipe.handleMessage(inputMessage);
++
++    verify(outputSender, times(1)).send(messageCaptor.capture());
++    Message<?> result = messageCaptor.getValue();
++
++    @SuppressWarnings("unchecked")
++    List<Map<String, Object>> outHeaders =
++        (List<Map<String, Object>>) result.getHeaders().get(BinderHeaders.BATCH_HEADERS);
++    assertThat(outHeaders)
++        .singleElement()
++        .satisfies(h -> assertThat(h)
++            .containsEntry("transformed-header", "transformed-value")
++            .containsEntry(BinderHeaders.TARGET_DESTINATION, targetDestination));
++  }
++
++  @Test
++  void testSplitterRoutingHeaderDoesNotOverrideTransformDestination() {
++    // A transform that deliberately sets its own destination must win over the splitter's.
++    BatchMessagePipe pipe = new BatchMessagePipe(
++        DEFAULT_BATCH_MESSAGE_FORMAT,
++        DEFAULT_BATCH_MESSAGE_FORMAT,
++        outputSender,
++        transformMessageHandler,
++        null,
++        null,
++        null,
++        messageSplitterHandler);
++
++    List<Object> batchPayloads = List.of("[{\"a\":1}]");
++    List<Map<String, Object>> batchHeaders = List.of(Map.of("src", "row-1"));
++    Message<?> inputMessage = MessageBuilder.withPayload(batchPayloads)
++        .setHeader(BinderHeaders.BATCH_HEADERS, batchHeaders)
++        .build();
++
++    Mockito.doReturn(new SplitBatch(
++            List.of(Map.of("a", 1)),
++            List.of(Map.of(BinderHeaders.TARGET_DESTINATION, "splitter/destination"))))
++        .when(messageSplitterHandler).split(
++            Mockito.eq("[{\"a\":1}]"),
++            Mockito.eq(Map.of("src", "row-1")),
++            Mockito.any(MessageHeaders.class));
++
++    Message<?> transformedMessage = MessageBuilder.withPayload("transformed")
++        .setHeader(BinderHeaders.TARGET_DESTINATION, "transform/destination")
++        .build();
++    Mockito.doReturn(transformedMessage)
++        .when(transformMessageHandler)
++        .handleMessage(Mockito.eq(Map.of("a", 1)), Mockito.any(MessageHeaders.class));
++
++    pipe.handleMessage(inputMessage);
++
++    verify(outputSender, times(1)).send(messageCaptor.capture());
++    Message<?> result = messageCaptor.getValue();
++
++    @SuppressWarnings("unchecked")
++    List<Map<String, Object>> outHeaders =
++        (List<Map<String, Object>>) result.getHeaders().get(BinderHeaders.BATCH_HEADERS);
++    assertThat(outHeaders)
++        .singleElement()
++        .satisfies(h -> assertThat(h)
++            .containsEntry(BinderHeaders.TARGET_DESTINATION, "transform/destination"));
++  }
++
+   @Test
+   void testSplitBatchRejectsMismatchedSizes() {
+     List<Object> payloads = List.of("p1", "p2");
+-- 
+2.34.1
+
