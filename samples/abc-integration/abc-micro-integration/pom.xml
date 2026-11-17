@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.solace.microintegration.core</groupId>
     <artifactId>micro-integration-build-parent</artifactId>
-    <version>4.3.0</version>
+    <version>4.3.14</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
