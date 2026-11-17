@@ -49,6 +49,12 @@ jobs:
       # against public images only - no registry login, no external endpoint,
       # no credentials. Drop to 'test' if PR turnaround matters more than
       # integration coverage.
+      # mvnw is committed as mode 100644 (not executable), so the runner's
+      # checkout cannot execute it directly - './mvnw' fails with
+      # "Permission denied", exit 126. chmod fixes it for this job only; the
+      # file in git stays non-executable, so anyone cloning on Linux/macOS
+      # still has to do the same by hand. The durable fix is
+      # 'git update-index --chmod=+x samples/abc-integration/mvnw'.
       - name: Build and test
         working-directory: samples/abc-integration
-        run: ./mvnw -B verify
+        run: chmod +x mvnw && ./mvnw -B verify
