@@ -126,6 +126,8 @@ Adapt the binding layout and workflow count based on `VERIFIED_CONSUMER_SUPPORTE
 - Flow 1 — Tech → Solace (consumer direction): `input-1: binder: {RESOLVED_BINDER_NAME}`, `destination: source-destination`, `output-1: binder: solace`
 - Two workflows: `0: enabled: false` and `1: enabled: true`
 
+**Processor (Solace → Solace)** — both ends are the Solace event broker, with a Java/SpEL transform in the middle (consume from the mesh → transform → publish back to the mesh). This shape has no foreign binder, so its generation rules differ from the three bridge cases above: no `{RESOLVED_BINDER_NAME}` section, no capabilities factories, no foreign connection properties, and workflow `0` is **enabled** (its single flow *is* workflow 0). When `{MI_CLAUDE_MD}` selects the processor archetype, follow [`generate-processor.md`](generate-processor.md) instead of the per-direction rules in this section.
+
 #### Extended binder properties
 
 Under `spring.cloud.stream.{RESOLVED_BINDER_NAME}.default`, include extended binding properties from `{MI_CLAUDE_MD}` (Extended Binding Properties section). Show properties as **commented-out YAML with descriptions**:
